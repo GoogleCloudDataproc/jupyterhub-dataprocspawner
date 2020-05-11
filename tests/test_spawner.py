@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from dataprocspawner import DataprocSpawner
 from google.cloud import dataproc_v1beta2
 from google.cloud.dataproc_v1beta2.proto import clusters_pb2
 from google.longrunning import operations_pb2
+from google.cloud import storage
 from jupyterhub.objects import Hub, Server
 from unittest import mock
 import json
@@ -63,15 +64,16 @@ class TestDataprocSpawner:
     assert spawner.region == self.region
 
     (ip, port) = await spawner.start()
-    assert ip == f'fake-jupyterhub-m.{self.zone}.c.{spawner.project}.internal'
+    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
     # JupyterHub defaults to 0 if no port set
     assert port == 0
 
     mock_client.create_cluster.assert_called_once()
-    assert spawner.cluster_data['cluster_name'] == 'fake-jupyterhub'
-    assert spawner.cluster_data['config']['gce_cluster_config']['zone_uri'] == f'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}'
 
-    env = json.loads(spawner.cluster_data['config']['software_config']['properties']['dataproc:jupyter.hub.env'])
+    assert spawner.cluster_definition['cluster_name'] == 'dataprochub-fake'
+    assert spawner.cluster_definition['config']['gce_cluster_config']['zone_uri'] == f'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}'
+
+    env = json.loads(spawner.cluster_definition['config']['software_config']['properties']['dataproc:jupyter.hub.env'])
     assert env['JUPYTERHUB_API_URL'] is not None
 
   @pytest.mark.asyncio
@@ -85,7 +87,7 @@ class TestDataprocSpawner:
     assert spawner.project == "test-create-existing"
 
     (ip, port) = await spawner.start()
-    assert ip == f'fake-jupyterhub-m.{self.zone}.c.{spawner.project}.internal'
+    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
     assert port == 0
 
     mock_client.create_cluster.assert_not_called()
@@ -103,7 +105,7 @@ class TestDataprocSpawner:
 
     response = await spawner.stop()
 
-    mock_client.delete_cluster.assert_called_once_with("test-stop", self.region, 'fake-jupyterhub')
+    mock_client.delete_cluster.assert_called_once_with("test-stop", self.region, 'dataprochub-fake')
 
   @pytest.mark.asyncio
   async def test_stop_no_cluster(self):
@@ -183,7 +185,7 @@ class TestDataprocSpawner:
     assert spawner.project == "non-domain-scoped"
 
     (ip, port) = await spawner.start()
-    assert ip == f'fake-jupyterhub-m.{self.zone}.c.{spawner.project}.internal'
+    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
     assert port == 0
 
   @pytest.mark.asyncio
@@ -196,9 +198,156 @@ class TestDataprocSpawner:
     assert spawner.project == "test:domain-scoped"
 
     (ip, port) = await spawner.start()
-    assert ip == f'fake-jupyterhub-m.{self.zone}.c.domain-scoped.test.internal'
+    assert ip == f'dataprochub-fake-m.{self.zone}.c.domain-scoped.test.internal'
     assert port == 0
+  
 
+  # YAML files
+  # Tests Dataproc cluster configurations.
+  
+  def test_cluster_definition_is_core_elements(self, monkeypatch):
+    """ Some keys must always be present for JupyterHub to work. """
+    import yaml
 
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/core_elements.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
 
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+
+    config_built = spawner._build_cluster_config()
+
+    assert 'project_id' in config_built
+    assert 'cluster_name' in config_built
+
+    assert config_built['project_id'] == 'test-project'
+    assert config_built['cluster_name'] == 'test-clustername'
+    
+    assert config_built['config']['gce_cluster_config']['zone_uri'].split('/')[-1] == 'test-self1-b'
+
+    assert 'ANACONDA' in config_built['config']['software_config']['optional_components']
+    assert 'JUPYTER' in config_built['config']['software_config']['optional_components']
+
+    assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
+    assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
+    assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
+    assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
+  
+  def test_cluster_definition_check_core_fields(self, monkeypatch):
+    """ Values chosen by the user through the form overwrites others. If the 
+    admin wants to prevent that behavior, they should remove form elements. 
+    TODO(mayran): Check keys so users can not add custom ones. """
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['project_id'] == 'test-project'
+    assert config_built['cluster_name'] == 'test-clustername'
+
+  
+  def test_cluster_definition_keep_core_values(self, monkeypatch):
+    """ Some system's default values must remain no matter what. """
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/rich.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'rich.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['project_id'] == 'test-project'
+    assert config_built['cluster_name'] == 'test-clustername'
+
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.args'] == 'test-args-str'
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.enabled'] == 'true'
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == ''
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
+
+  def test_cluster_definition_does_form_overwrite(self, monkeypatch):
+    """ Values chosen by the user through the form overwrites others. If the 
+    admin wants to prevent that behavior, they should remove form elements. 
+    TODO(mayran): Check keys so users can not add custom ones. """
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/rich.yaml', 'r').read()
+      return config_string
+    
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'rich.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['gce_cluster_config']['zone_uri'].split('/')[-1] == 'test-form1-a'
 
