@@ -143,6 +143,7 @@ class DataprocSpawner(Spawner):
       """,)
   
   dataproc_locations_list = Unicode(
+      "",
       config=True,
       help=""" 
       Comma separated list of the zone letters where to spawn Cloud Dataproc in
@@ -233,11 +234,13 @@ class DataprocSpawner(Spawner):
           self.client_transport)
       
       # Strip leading gs:// from notebook location, if present
-      if self.gcs_notebooks.startswith('gs://'):
-        self.gcs_notebooks = self.gcs_notebooks[5:]
-      self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
+      if self.gcs_notebooks:
+        if self.gcs_notebooks.startswith('gs://'):
+          self.gcs_notebooks = self.gcs_notebooks[5:]
+        self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
+      
       self.gcs_client = storage.Client(project=self.project)
-    
+      
   
 ################################################################################
 # Required functions
@@ -257,7 +260,8 @@ class DataprocSpawner(Spawner):
     elif await self.exists(self.clustername()):
       self.log.warning(f'Cluster named {self.clustername()} already exists')
     else:
-      self.create_example_notebooks()
+      if self.gcs_user_folder:
+        self.create_example_notebooks()
       await self.create_cluster()
 
       start_notebook_cmd = self.cmd + self.get_args()
@@ -298,6 +302,11 @@ class DataprocSpawner(Spawner):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
     """
+    
+    # Skips the form if no config provided.
+    if not self.dataproc_configs:
+      return ""
+
     base_html = get_base_cluster_html_form(
       self.dataproc_configs.split(','),
       self.dataproc_locations_list.split(','),
@@ -798,8 +807,12 @@ class DataprocSpawner(Spawner):
     ['dataproc:jupyter.hub.env']) = self.env_str
     (cluster_data['config']['software_config']['properties']
     ['dataproc:jupyter.hub.enabled']) = 'true'
-    (cluster_data['config']['software_config']['properties']
-    ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
+    if self.gcs_user_folder:
+      (cluster_data['config']['software_config']['properties']
+      ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
+    
+    if 'image_version' not in cluster_data['config']['software_config']:
+      cluster_data['config']['software_config']['image_version'] = '1.4.16-debian9'
 
     if self.force_add_jupyter_component:
       cluster_data['config']['software_config'].setdefault('optional_components', [])
