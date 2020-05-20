@@ -1,0 +1,3 @@
+config:
+  softwareConfig: 
+    imageVersion: 1.4.16-debian9

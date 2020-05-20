@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,16 +25,18 @@ setup(
     version='0.1',
     description='DataprocSpawner for JupyterHub',
     url='https://github.com/GoogleCloudPlatform/dataprocspawner',
-    author='Ann Yue',
-    author_email='annyue@google.com',
     license='Apache 2.0',
     packages=['dataprocspawner'],
     install_requires=[
-        'jupyterhub>=1.0.0',
         'tornado>=5.0',
-        'google-cloud-dataproc>=0.4.0',
+        'google-cloud-dataproc>=0.6.1',
+        'google-cloud-storage>=1.25.0',
         'traitlets>=4.3.2',
-        'google-cloud-core>=1.0.2'
+        'google-cloud-core>=1.3.0',
+        'google-cloud-secret-manager>=0.1.1',
+        'pyyaml>=5.1.2',
+        'oauthenticator>=0.9.0',
+        'pyjwt>=1.7.1'
     ],
     setup_requires=["pytest-runner"],
     tests_require=["pytest", "pytest-asyncio"],
