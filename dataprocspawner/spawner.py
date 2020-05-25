@@ -630,7 +630,7 @@ class DataprocSpawner(Spawner):
             'seconds': unit_to_seconds(init_action['execution_timeout']),
             'nanos': 0
           }
-          idx = idx + 1
+        idx = idx + 1
 
     # Converts durations for lifecycle_config.
     if (data['config']
