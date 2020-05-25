@@ -438,12 +438,12 @@ class DataprocSpawner(Spawner):
 
     # Properties might have some values that needs to remain with CamelCase so
     # we remove the properties from the conversion from CamelCase to snake_case.
-    software_properties = (config_dict
+    software_properties = (config_dict['config']
         .setdefault('softwareConfig', {})
         .setdefault('properties', {}))
     
     if software_properties:
-      del config_dict['softwareConfig']['properties']
+      del config_dict['config']['softwareConfig']['properties']
     
     config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
@@ -451,7 +451,7 @@ class DataprocSpawner(Spawner):
 
     # Readd the properties. softwareConfig is now camel_case.
     if software_properties:
-      config_dict['software_config']['properties'] = software_properties
+      config_dict['config']['software_config']['properties'] = software_properties
 
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
@@ -623,12 +623,14 @@ class DataprocSpawner(Spawner):
 
     # Loops through initialization actions list.
     if data['config'].setdefault("initialization_actions", {}):
+      idx = 0
       for init_action in data['config']['initialization_actions']:
         if 'execution_timeout' in init_action:
-          data['config']['initialization_actions'][0]['execution_timeout'] = {
+          data['config']['initialization_actions'][idx]['execution_timeout'] = {
             'seconds': unit_to_seconds(init_action['execution_timeout']),
             'nanos': 0
           }
+          idx = idx + 1
 
     # Converts durations for lifecycle_config.
     if (data['config']
