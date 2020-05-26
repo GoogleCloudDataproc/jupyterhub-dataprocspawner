@@ -25,7 +25,9 @@ config:
   - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-dataproc.sh
     executionTimeout: 600s
   - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-presto-conf.sh
-    executionTimeout: 600s
+    executionTimeout: 
+      seconds: 600
+      nanos: 0
   masterConfig:
     diskConfig:
       bootDiskSizeGb: 1000

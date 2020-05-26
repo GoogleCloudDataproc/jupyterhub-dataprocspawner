@@ -44,6 +44,7 @@ class TestDataprocSpawner:
   # Spawner defaults to us-central1 for the region
   region = "us-central1"
   zone = "us-central1-a"
+  gcs_notebooks = "gs://users-notebooks"
 
   @pytest.mark.asyncio
   async def test_start_normal(self):
@@ -56,7 +57,7 @@ class TestDataprocSpawner:
     # Force no existing clusters to bypass the check in the spawner
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     # Test that the traitlets work
     spawner.project = "test-create"
@@ -81,7 +82,7 @@ class TestDataprocSpawner:
 
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-create-existing"
     assert spawner.project == "test-create-existing"
@@ -97,7 +98,7 @@ class TestDataprocSpawner:
 
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-stop"
     assert spawner.project == "test-stop"
@@ -113,7 +114,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-stop-no-cluster"
     assert spawner.project == "test-stop-no-cluster"
@@ -135,7 +136,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_client.get_cluster.return_value = expected_response
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-poll"
     assert spawner.project == "test-poll"
@@ -155,7 +156,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_client.get_cluster.return_value = expected_response
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-poll-create"
     assert spawner.project == "test-poll-create"
@@ -168,7 +169,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test-poll-no-cluster"
     assert spawner.project == "test-poll-no-cluster"
@@ -179,7 +180,7 @@ class TestDataprocSpawner:
   async def test_normal_zonal_dns(self):
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "non-domain-scoped"
     assert spawner.project == "non-domain-scoped"
@@ -192,7 +193,7 @@ class TestDataprocSpawner:
   async def test_domain_scoped_zonal_dns(self):
     mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test:domain-scoped"
     assert spawner.project == "test:domain-scoped"
@@ -204,12 +205,12 @@ class TestDataprocSpawner:
   # YAML files
   # Tests Dataproc cluster configurations.
   
-  def test_cluster_definition_is_core_elements(self, monkeypatch):
+  def test_minimium_cluster_definition(self, monkeypatch):
     """ Some keys must always be present for JupyterHub to work. """
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/core_elements.yaml', 'r').read()
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
@@ -217,7 +218,7 @@ class TestDataprocSpawner:
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
@@ -243,7 +244,7 @@ class TestDataprocSpawner:
 
     assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
-    #assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
+    # assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
   
   def test_cluster_definition_check_core_fields(self, monkeypatch):
@@ -261,14 +262,15 @@ class TestDataprocSpawner:
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
     spawner.project = "test-project"
-    spawner.zone = "test-self1-b"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
@@ -287,7 +289,7 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/rich.yaml', 'r').read()
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
@@ -295,18 +297,19 @@ class TestDataprocSpawner:
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
     spawner.project = "test-project"
-    spawner.zone = "test-self1-b"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'rich.yaml',
+      'cluster_type': 'export.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -317,7 +320,7 @@ class TestDataprocSpawner:
 
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.args'] == 'test-args-str'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.enabled'] == 'true'
-    assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == ''
+    # assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == f'gs://users-notebooks/fake'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
 
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
@@ -327,22 +330,23 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/rich.yaml', 'r').read()
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
       return config_string
     
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
 
     spawner.project = "test-project"
-    spawner.zone = "test-self1-b"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'rich.yaml',
+      'cluster_type': 'export.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -362,14 +366,15 @@ class TestDataprocSpawner:
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
     spawner.project = "test-project"
-    spawner.zone = "test-self1-b"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
@@ -395,14 +400,15 @@ class TestDataprocSpawner:
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
     spawner.project = "test-project"
-    spawner.zone = "test-self1-b"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
@@ -412,6 +418,43 @@ class TestDataprocSpawner:
 
     config_built = spawner._build_cluster_config()
 
+    # Test 600s string
     assert config_built['config']['initialization_actions'][0]['execution_timeout']['seconds'] == 600
+    # Test Duration protobuf
+    assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
+  
+  def test_locations(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    subnet_region = config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3]
+    assert subnet_region == spawner.region
+    
         
 
