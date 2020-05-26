@@ -200,7 +200,6 @@ class TestDataprocSpawner:
     (ip, port) = await spawner.start()
     assert ip == f'dataprochub-fake-m.{self.zone}.c.domain-scoped.test.internal'
     assert port == 0
-  
 
   # YAML files
   # Tests Dataproc cluster configurations.
@@ -244,7 +243,7 @@ class TestDataprocSpawner:
 
     assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
-    assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
+    #assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
   
   def test_cluster_definition_check_core_fields(self, monkeypatch):
@@ -350,4 +349,69 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
 
     assert config_built['config']['gce_cluster_config']['zone_uri'].split('/')[-1] == 'test-form1-a'
+
+  def test_camel_case(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert (config_built['config']['worker_config']['machine_type_uri'] == 
+        "https://www.googleapis.com/compute/v1/projects/alluxio-demo/zones/us-east1-d/machineTypes/n1-highmem-16")
+    
+  
+  def test_duration(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['initialization_actions'][0]['execution_timeout']['seconds'] == 600
+        
 

@@ -400,8 +400,12 @@ class DataprocSpawner(Spawner):
   def camelcase_to_snakecase(self, cc):
     """ Converts yaml's keys from CamelCase to snake_case so the cluster config
     is understandable by the Dataproc's Python client. """
-    sc = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', cc)
-    sc = re.sub('([a-z0-9])([A-Z])', r'\1_\2', sc)
+
+    # 1. Changes the first aA starting from line beginning to a_A.
+    # 2. Changes all the ones after and stops at the first :
+    # 3. Lower case all the _A
+    sc = re.sub('(^[_a-z \t-]*)([a-z])([A-Z])', r'\1_\2\3', cc)
+    sc = re.sub('([a-z])([A-Z])(?=.+:)', r'\1_\2', sc)
     sc = re.sub('([a-zA-Z0-9_]+):', lambda m: m.group(0).lower(), sc)
     return sc
 
@@ -430,10 +434,26 @@ class DataprocSpawner(Spawner):
       (bytes, dict): Content of the file both as a string and yaml dict.
     """
     config_string = self.read_gcs_file(file_path)
+    config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
+
+    # Properties might have some values that needs to remain with CamelCase so
+    # we remove the properties from the conversion from CamelCase to snake_case.
+    software_properties = (config_dict['config']
+        .setdefault('softwareConfig', {})
+        .setdefault('properties', {}))
+    
+    if software_properties:
+      del config_dict['config']['softwareConfig']['properties']
+    
+    config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
-    self.log.debug(f'config_dict is {config_dict}')
 
+    # Readd the properties. softwareConfig is now camel_case.
+    if software_properties:
+      config_dict['config']['software_config']['properties'] = software_properties
+
+    self.log.debug(f'config_dict is {config_dict}')
     return config_dict
 
 
@@ -580,6 +600,60 @@ class DataprocSpawner(Spawner):
     if not folder.endswith("/"):
         folder += "/"
     return bucket, folder
+  
+  def convert_string_to_duration(self, data):
+    """ A cluster export exports times as string using the JSON API but creating
+    but a cluster uses Duration protobuf. This function checks if the fields 
+    known to be affected by this behavior are present in the cluster config. 
+    If so, it changes their value from string to a Duration in YAML. Duration 
+    looks like {'seconds': 15, 'nanos': 0}. """
+    self.log.info('Converting durations for {data}')
+
+    def unit_to_seconds(united):
+      time_span = united[:-1]
+      time_unit = united[-1]
+      if time_unit == 'm':
+        return int(time_span) * 60
+      elif time_unit == 'h':
+        return int(time_span) * 3600
+      elif time_unit == 'd':
+        return int(time_span) * 86400
+      else:
+        return int(time_span)
+
+    # Loops through initialization actions list.
+    if data['config'].setdefault("initialization_actions", {}):
+      idx = 0
+      for init_action in data['config']['initialization_actions']:
+        if 'execution_timeout' in init_action:
+          data['config']['initialization_actions'][idx]['execution_timeout'] = {
+            'seconds': unit_to_seconds(init_action['execution_timeout']),
+            'nanos': 0
+          }
+        idx = idx + 1
+
+    # Converts durations for lifecycle_config.
+    if (data['config']
+        .setdefault('lifecycle_config', {})
+        .setdefault('idle_delete_ttl', {})):
+      data['config']['lifecycle_config']['idle_delete_ttl'] = {
+            'seconds': unit_to_seconds(
+                data['config']['lifecycle_config']['idle_delete_ttl']),
+            'nanos': 0
+      }
+
+    if (data['config']
+        .setdefault('lifecycle_config', {})
+        .setdefault('auto_delete_ttl', {}) ):
+      data['config']['lifecycle_config']['auto_delete_ttl'] = {
+            'seconds': unit_to_seconds(
+                data['config']['lifecycle_config']['auto_delete_ttl']),
+            'nanos': 0
+      }
+    
+    self.log.info('Converted durations are in {data}')
+
+    return data.copy()
 
 ################################################################################
 # Cluster configuration
@@ -822,5 +896,8 @@ class DataprocSpawner(Spawner):
       if 'ANACONDA' not in optional_components:
         optional_components.append('ANACONDA')
     
+    # Check Durations
+    cluster_data = self.convert_string_to_duration(cluster_data.copy())
+
     self.log.info(f'Cluster configuration data is {cluster_data}')
     return cluster_data
