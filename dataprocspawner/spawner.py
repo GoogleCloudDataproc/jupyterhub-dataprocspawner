@@ -232,14 +232,13 @@ class DataprocSpawner(Spawner):
             address=f'{self.region}-dataproc.googleapis.com:443'))
       self.dataproc_client = dataproc_v1beta2.ClusterControllerClient(
           self.client_transport)
-      
-      # Strip leading gs:// from notebook location, if present
-      if self.gcs_notebooks:
-        if self.gcs_notebooks.startswith('gs://'):
-          self.gcs_notebooks = self.gcs_notebooks[5:]
-        self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
-      
       self.gcs_client = storage.Client(project=self.project)
+
+    if self.gcs_notebooks:
+      if self.gcs_notebooks.startswith('gs://'):
+        self.gcs_notebooks = self.gcs_notebooks[5:]
+      
+      self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
       
   
 ################################################################################
@@ -254,11 +253,11 @@ class DataprocSpawner(Spawner):
       (String, Int): FQDN of the master node and the port it's accessible at.
     """
     if await self.get_cluster_status(self.clustername()) == ClusterStatus.State.DELETING:
-      msg = f'Cluster {self.clustername()} is pending deletion.'
-      self.log.warning(msg)
-      raise RuntimeError(msg)
+      raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
+    
     elif await self.exists(self.clustername()):
       self.log.warning(f'Cluster named {self.clustername()} already exists')
+    
     else:
       if self.gcs_user_folder:
         self.create_example_notebooks()
@@ -610,22 +609,26 @@ class DataprocSpawner(Spawner):
     self.log.info('Converting durations for {data}')
 
     def unit_to_seconds(united):
-      time_span = united[:-1]
-      time_unit = united[-1]
-      if time_unit == 'm':
-        return int(time_span) * 60
-      elif time_unit == 'h':
-        return int(time_span) * 3600
-      elif time_unit == 'd':
-        return int(time_span) * 86400
-      else:
-        return int(time_span)
+      if united:
+        time_span = united[:-1]
+        time_unit = united[-1]
+        if time_unit == 'm':
+          return int(time_span) * 60
+        elif time_unit == 'h':
+          return int(time_span) * 3600
+        elif time_unit == 'd':
+          return int(time_span) * 86400
+        else:
+          return int(time_span)
+      return united
 
-    # Loops through initialization actions list.
+    # Loops through initialization actions list and replace values that have 
+    # 
     if data['config'].setdefault("initialization_actions", {}):
       idx = 0
       for init_action in data['config']['initialization_actions']:
-        if 'execution_timeout' in init_action:
+        if ('execution_timeout' in init_action
+            and isinstance(init_action['execution_timeout'], str)):
           data['config']['initialization_actions'][idx]['execution_timeout'] = {
             'seconds': unit_to_seconds(init_action['execution_timeout']),
             'nanos': 0
@@ -865,7 +868,7 @@ class DataprocSpawner(Spawner):
     cluster_data["cluster_name"] = self.clustername()
     cluster_data.setdefault("config", {})
     
-    # Sets the zone. Which one overwrites which is decided in the form logic.
+    # Sets the zone. Which one overwrites is decided in the form logic.
     cluster_data['config'].setdefault('gce_cluster_config', {})
     cluster_data['config']['gce_cluster_config']['zone_uri'] = (
         f'''https://www.googleapis.com/compute/v1/projects/{self.project}/'''
@@ -896,8 +899,24 @@ class DataprocSpawner(Spawner):
       if 'ANACONDA' not in optional_components:
         optional_components.append('ANACONDA')
     
-    # Check Durations
+    # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
+
+    # Checks that cluster subnet location matches with the Hub's one.
+    if 'subnetwork_uri' in cluster_data['config']['gce_cluster_config']:
+      subnet_region = (cluster_data['config']['gce_cluster_config']
+          ['subnetwork_uri'].split('/')[-3])
+      if subnet_region != self.region:
+        raise RuntimeError(f'''Subnet region {subnet_region} provided is not the
+            same region as Dataproc Hub region {self.region}. Contact your 
+            admnistrator. ''')
+    
+    # Temporarily disable Component Gateway until handled by core product.
+    # TODO(mayran): Remove when code in prod.
+    if (cluster_data['config']
+        .setdefault('endpoint_config', {})
+        .setdefault('enable_http_port_access', False)):
+      cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
 
     self.log.info(f'Cluster configuration data is {cluster_data}')
     return cluster_data
