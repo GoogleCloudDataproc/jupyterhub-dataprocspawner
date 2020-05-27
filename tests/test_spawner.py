@@ -400,7 +400,7 @@ class TestDataprocSpawner:
           'zone_uri': 'https://www.googleapis.com/compute/v1/projects/test-project/zones/test-form1-a'
         },
         'initialization_actions': [],
-        'lifecycle_config': {'auto_delete_ttl': {}, 'idle_delete_ttl': {}},
+        'lifecycle_config': {},
         'master_config': {
           'disk_config': {
             'boot_disk_size_gb': 1000,
