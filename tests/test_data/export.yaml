@@ -1,3 +1,4 @@
+clusterName: 'overwrite'
 config:
   configBucket: dataproc-staging-us-east1-935823299908-gvss3h0b
   endpointConfig:
