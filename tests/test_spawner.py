@@ -358,7 +358,7 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      config_string = open('./tests/test_data/custom.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
@@ -378,15 +378,53 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'basic.yaml',
+      'cluster_type': 'custom.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
     config_built = spawner._build_cluster_config()
 
-    assert (config_built['config']['worker_config']['machine_type_uri'] == 
-        "https://www.googleapis.com/compute/v1/projects/alluxio-demo/zones/us-east1-d/machineTypes/n1-highmem-16")
-    
+    expected_dict = {
+      'project_id': 'test-project',
+      'labels': {'goog-dataproc-notebook-spawner': 'unknown'},
+      'cluster_name': 'test-clustername',
+      'config': {
+        'config_bucket': 'bucket-dash',
+        'endpoint_config': {'enable_http_port_access': False},
+        'gce_cluster_config': {
+          'metadata': {
+            'KeyCamelCase': 'UlowUlow',
+            'key_with_underscore': 'https://downloads.io/protected/files/enterprise-trial.tar.gz',
+            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234'
+          },
+          'zone_uri': 'https://www.googleapis.com/compute/v1/projects/test-project/zones/test-form1-a'
+        },
+        'initialization_actions': [],
+        'lifecycle_config': {'auto_delete_ttl': {}, 'idle_delete_ttl': {}},
+        'master_config': {
+          'disk_config': {
+            'boot_disk_size_gb': 1000,
+            'machine_type_uri': 'https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers',
+            'min_cpu_platform': 'AUTOMATIC'
+          }
+        },
+        'software_config': {
+          'image_version': '1.4.16-debian9',
+          'optional_components': ['JUPYTER', 'ANACONDA'],
+          'properties': {
+            'dataproc:jupyter.hub.args': 'test-args-str',
+            'dataproc:jupyter.hub.enabled': 'true',
+            'dataproc:jupyter.hub.env': 'test-env-str',
+            'dataproc:jupyter.notebook.gcs.dir': 'gs://users-notebooks/fake',
+            'key-with-dash:UPPER_UPPER': '4000',
+            'key-with-dash-too:UlowUlowUlow': '85196m',
+            'key:and.multiple.dots.lowUlowUlow': '13312m'
+          }
+        }
+      }
+    }
+
+    assert expected_dict == config_built    
   
   def test_duration(self, monkeypatch):
     import yaml

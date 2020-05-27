@@ -1,3 +1,4 @@
+clusterName: 'overwrite'
 config:
   initializationActions: 
   - executableFile: gs://dataproc-initialization-actions/python/pip-install.sh

@@ -403,7 +403,7 @@ class DataprocSpawner(Spawner):
     # 1. Changes the first aA starting from line beginning to a_A.
     # 2. Changes all the ones after and stops at the first :
     # 3. Lower case all the _A
-    sc = re.sub('(^[_a-z \t-]*)([a-z])([A-Z])', r'\1_\2\3', cc)
+    sc = re.sub('(^[_a-z \t-]*)([a-z])([A-Z])', r'\1\2_\3', cc)
     sc = re.sub('([a-z])([A-Z])(?=.+:)', r'\1_\2', sc)
     sc = re.sub('([a-zA-Z0-9_]+):', lambda m: m.group(0).lower(), sc)
     return sc
@@ -435,22 +435,29 @@ class DataprocSpawner(Spawner):
     config_string = self.read_gcs_file(file_path)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
 
-    # Properties might have some values that needs to remain with CamelCase so
-    # we remove the properties from the conversion from CamelCase to snake_case.
-    software_properties = (config_dict['config']
-        .setdefault('softwareConfig', {})
-        .setdefault('properties', {}))
-    
-    if software_properties:
+    # Properties and Metadata might have some values that needs to remain with 
+    # CamelCase so we remove the properties from the conversion from CamelCase 
+    # to snake_case and add the properties back afterwards using snake_case key.
+    skip_properties = {}
+    skip_metadata = {}
+
+    if 'properties' in config_dict['config'].setdefault('softwareConfig', {}):
+      skip_properties = config_dict['config']['softwareConfig']['properties']
       del config_dict['config']['softwareConfig']['properties']
+
+    if 'metadata' in config_dict['config'].setdefault('gceClusterConfig', {}):
+      skip_metadata = config_dict['config']['gceClusterConfig']['metadata']
+      del config_dict['config']['gceClusterConfig']['metadata']
     
     config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
 
-    # Readd the properties. softwareConfig is now camel_case.
-    if software_properties:
-      config_dict['config']['software_config']['properties'] = software_properties
+    if skip_properties:
+      config_dict['config']['software_config']['properties'] = skip_properties
+
+    if skip_properties:
+        config_dict['config']['gce_cluster_config']['metadata'] = skip_metadata
 
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
@@ -608,7 +615,9 @@ class DataprocSpawner(Spawner):
     looks like {'seconds': 15, 'nanos': 0}. """
     self.log.info('Converting durations for {data}')
 
-    def unit_to_seconds(united):
+    def to_sec(united):
+      """ Converts a time string finishing by a time unit as the matching number
+      of seconds. """
       if united:
         time_span = united[:-1]
         time_unit = united[-1]
@@ -630,28 +639,22 @@ class DataprocSpawner(Spawner):
         if ('execution_timeout' in init_action
             and isinstance(init_action['execution_timeout'], str)):
           data['config']['initialization_actions'][idx]['execution_timeout'] = {
-            'seconds': unit_to_seconds(init_action['execution_timeout']),
+            'seconds': to_sec(init_action['execution_timeout']),
             'nanos': 0
           }
         idx = idx + 1
 
     # Converts durations for lifecycle_config.
-    if (data['config']
-        .setdefault('lifecycle_config', {})
-        .setdefault('idle_delete_ttl', {})):
+    if 'idle_delete_ttl' in data['config'].setdefault('lifecycle_config', {}):
       data['config']['lifecycle_config']['idle_delete_ttl'] = {
-            'seconds': unit_to_seconds(
-                data['config']['lifecycle_config']['idle_delete_ttl']),
-            'nanos': 0
+        'seconds': to_sec(data['config']['lifecycle_config']['idle_delete_ttl']),
+        'nanos': 0
       }
 
-    if (data['config']
-        .setdefault('lifecycle_config', {})
-        .setdefault('auto_delete_ttl', {}) ):
+    if 'auto_delete_ttl' in data['config'].setdefault('lifecycle_config', {}):
       data['config']['lifecycle_config']['auto_delete_ttl'] = {
-            'seconds': unit_to_seconds(
-                data['config']['lifecycle_config']['auto_delete_ttl']),
-            'nanos': 0
+        'seconds': to_sec(data['config']['lifecycle_config']['auto_delete_ttl']),
+        'nanos': 0
       }
     
     self.log.info('Converted durations are in {data}')
