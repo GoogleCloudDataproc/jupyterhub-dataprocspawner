@@ -389,6 +389,8 @@ class TestDataprocSpawner:
       'labels': {'goog-dataproc-notebook-spawner': 'unknown'},
       'cluster_name': 'test-clustername',
       'config': {
+        'autoscaling_config': {
+          'policy_uri': 'projects/my-project/regions/us-east1/autoscalingPolicies/policy-abc123'},
         'config_bucket': 'bucket-dash',
         'endpoint_config': {'enable_http_port_access': False},
         'gce_cluster_config': {
