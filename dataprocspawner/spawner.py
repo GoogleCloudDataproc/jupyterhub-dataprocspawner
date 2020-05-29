@@ -645,13 +645,15 @@ class DataprocSpawner(Spawner):
         idx = idx + 1
 
     # Converts durations for lifecycle_config.
-    if 'idle_delete_ttl' in data['config'].setdefault('lifecycle_config', {}):
+    if ('idle_delete_ttl' in data['config'].setdefault('lifecycle_config', {})
+        and isinstance(data['config']['lifecycle_config']['idle_delete_ttl'], str)):
       data['config']['lifecycle_config']['idle_delete_ttl'] = {
         'seconds': to_sec(data['config']['lifecycle_config']['idle_delete_ttl']),
         'nanos': 0
       }
 
-    if 'auto_delete_ttl' in data['config'].setdefault('lifecycle_config', {}):
+    if ('auto_delete_ttl' in data['config'].setdefault('lifecycle_config', {})
+        and isinstance(data['config']['lifecycle_config']['auto_delete_ttl'], str)):
       data['config']['lifecycle_config']['auto_delete_ttl'] = {
         'seconds': to_sec(data['config']['lifecycle_config']['auto_delete_ttl']),
         'nanos': 0
