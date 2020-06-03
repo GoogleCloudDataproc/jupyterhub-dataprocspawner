@@ -946,5 +946,11 @@ class DataprocSpawner(Spawner):
     if (cluster_data['config'].setdefault('secondary_worker_config', {})):
       cluster_data['config']['secondary_worker_config'].pop('preemptibility', None)
 
+    # Strip cluster-specific namenode properties
+    if (cluster_data['config'].setdefault('software_config', {}) and
+        cluster_data['config']['software_config'].setdefault('properties', {})):
+        cluster_data['config']['software_config']['properties'].pop('hdfs:dfs.namenode.lifeline.rpc-address', None)
+        cluster_data['config']['software_config']['properties'].pop('hdfs:dfs.namenode.servicerpc-address', None)
+
     self.log.info(f'Cluster configuration data is {cluster_data}')
     return cluster_data
