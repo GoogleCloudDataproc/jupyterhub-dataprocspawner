@@ -936,6 +936,15 @@ class DataprocSpawner(Spawner):
         .setdefault('endpoint_config', {})
         .setdefault('enable_http_port_access', False)):
       cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
+    
+    # Temporarily disable setting preemptibility field until Dataproc client
+    # libraries support the enum value
+    if (cluster_data['config'].setdefault('master_config', {})):
+      cluster_data['config']['master_config'].pop('preemptibility', None)
+    if (cluster_data['config'].setdefault('worker_config', {})):
+      cluster_data['config']['worker_config'].pop('preemptibility', None)
+    if (cluster_data['config'].setdefault('secondary_worker_config', {})):
+      cluster_data['config']['secondary_worker_config'].pop('preemptibility', None)
 
     self.log.info(f'Cluster configuration data is {cluster_data}')
     return cluster_data

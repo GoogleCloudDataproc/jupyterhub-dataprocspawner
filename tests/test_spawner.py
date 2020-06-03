@@ -323,6 +323,13 @@ class TestDataprocSpawner:
     # assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == f'gs://users-notebooks/fake'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
 
+    # Verify that we disable Component Gateway (temporarily)
+    assert config_built['config']['endpoint_config']['enable_http_port_access'] == False
+    # Verify that we disable preemptibility (temporarily)
+    assert 'preemptibility' not in config_built['config']['master_config']
+    assert 'preemptibility' not in config_built['config']['worker_config']
+    assert 'preemptibility' not in config_built['config']['secondary_worker_config']
+
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
     """ Values chosen by the user through the form overwrites others. If the 
     admin wants to prevent that behavior, they should remove form elements. 
