@@ -1,7 +1,7 @@
 clusterName: 'overwrite'
 config:
   gceClusterConfig:
-    subnetworkUri: default
+    subnetworkUri: projects/test-project/regions/us-east1/subnetworks/default
   initializationActions: 
   - executableFile: gs://dataproc-initialization-actions/python/pip-install.sh
   softwareConfig: 

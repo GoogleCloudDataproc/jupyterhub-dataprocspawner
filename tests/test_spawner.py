@@ -289,7 +289,7 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
@@ -309,7 +309,7 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'export.yaml',
+      'cluster_type': 'basic.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -330,7 +330,7 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
     
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
@@ -346,7 +346,7 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'export.yaml',
+      'cluster_type': 'basic.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -432,7 +432,7 @@ class TestDataprocSpawner:
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      config_string = open('./tests/test_data/duration.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
@@ -463,11 +463,66 @@ class TestDataprocSpawner:
     # Test Duration protobuf
     assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
   
+  def test_subnetwork(self, monkeypatch):
+    import yaml
+
+    def test_read_file_string(*args, **kwargs):
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
+      return config_string
+    
+    def test_read_file_uri(*args, **kwargs):
+      config_string = open('./tests/test_data/basic_uri.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_string)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['gce_cluster_config']['subnetwork_uri'] == "default"
+
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_uri)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['gce_cluster_config']['subnetwork_uri'] == "projects/test-project/regions/us-east1/subnetworks/default"
+  
+
   def test_locations(self, monkeypatch):
     import yaml
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      config_string = open('./tests/test_data/basic_uri.yaml', 'r').read()
       return config_string
     
     def test_clustername(*args, **kwargs):
