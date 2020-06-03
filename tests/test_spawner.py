@@ -323,12 +323,46 @@ class TestDataprocSpawner:
     # assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == f'gs://users-notebooks/fake'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
 
+  def test_cluster_definition_overrides(self, monkeypatch):
+    """Check that config settings incompatible with JupyterHub are overwritten correctly."""
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/export.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'export.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
     # Verify that we disable Component Gateway (temporarily)
     assert config_built['config']['endpoint_config']['enable_http_port_access'] == False
     # Verify that we disable preemptibility (temporarily)
     assert 'preemptibility' not in config_built['config']['master_config']
     assert 'preemptibility' not in config_built['config']['worker_config']
     assert 'preemptibility' not in config_built['config']['secondary_worker_config']
+    # Verify that we removed cluster-specific namenode properties
+    assert 'hdfs:dfs.namenode.lifeline.rpc-address' not in config_built['config']['software_config']['properties']
+    assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
     """ Values chosen by the user through the form overwrites others. If the 
