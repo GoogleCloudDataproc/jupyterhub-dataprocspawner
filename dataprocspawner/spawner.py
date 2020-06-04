@@ -632,8 +632,7 @@ class DataprocSpawner(Spawner):
       return united
 
     # Loops through initialization actions list and replace values that have 
-    # 
-    if data['config'].setdefault("initialization_actions", {}):
+    if data['config'].setdefault("initialization_actions", []):
       idx = 0
       for init_action in data['config']['initialization_actions']:
         if ('execution_timeout' in init_action
@@ -662,6 +661,20 @@ class DataprocSpawner(Spawner):
     self.log.info('Converted durations are in {data}')
 
     return data.copy()
+  
+  def _check_uri_geo(self, uri, uri_geo_slice, expected_geo):
+    uri_geo = None
+    uri_data = uri.split('/')
+    if len(uri_data) > 1:
+      uri_geo = uri_data[uri_geo_slice]
+      if uri_geo not in [expected_geo, 'global']:
+        raise RuntimeError(f'''The location {uri_geo} of the uri {uri} in
+            the yaml file does not match the Dataproc Hub's one {expected_geo}.
+            Please, contact your admnistrator. ''')
+    return uri_geo or uri
+
+
+
 
 ################################################################################
 # Cluster configuration
@@ -908,14 +921,15 @@ class DataprocSpawner(Spawner):
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
 
     # Checks that cluster subnet location matches with the Hub's one.
+    # Must support all string patterns for subnetworkUri:
+    # https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig
     if 'subnetwork_uri' in cluster_data['config']['gce_cluster_config']:
-      subnet_region = (cluster_data['config']['gce_cluster_config']
-          ['subnetwork_uri'].split('/')[-3])
-      if subnet_region != self.region:
-        raise RuntimeError(f'''Subnet region {subnet_region} provided is not the
-            same region as Dataproc Hub region {self.region}. Contact your 
-            admnistrator. ''')
-    
+      self._check_uri_geo(
+        uri=cluster_data['config']['gce_cluster_config']['subnetwork_uri'],
+        uri_geo_slice=-3,
+        expected_geo=self.region
+      )
+   
     # Temporarily disable Component Gateway until handled by core product.
     # TODO(mayran): Remove when code in prod.
     if (cluster_data['config']

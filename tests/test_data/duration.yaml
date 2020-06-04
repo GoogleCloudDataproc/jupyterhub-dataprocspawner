@@ -1,0 +1,9 @@
+clusterName: 'overwrite'
+config:
+  initializationActions:
+  - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-dataproc.sh
+    executionTimeout: 600s
+  - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-presto-conf.sh
+    executionTimeout: 
+      seconds: 600
+      nanos: 0
