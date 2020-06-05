@@ -6,12 +6,12 @@ config:
   gceClusterConfig:
     metadata:
       VmDnsSetting: ZonalPreferred
-      alluxio_download_path: https://downloads.alluxio.io/protected/files/alluxio-enterprise-trial.tar.gz
-      alluxio_hive_catalog_host: on-prem-a-m.us-west1-a.c.alluxio-demo.internal
-      alluxio_root_ufs_uri: hdfs://on-prem-a-m.us-west1-a.c.alluxio-demo.internal:8020
-      alluxio_site_properties: alluxio.user.file.passive.cache.enabled=false;alluxio.user.ufs.block.read.location.policy=alluxio.client.block.policy.DeterministicHashPolicy;alluxio.user.ufs.block.read.location.policy.deterministic.hash.shards=3;alluxio.master.mount.table.root.option.alluxio.underfs.hdfs.remote=true
-      alluxio_ssd_capacity_usage: '60'
-      alluxio_sync_list: /tmp
+      example_download_path: https://downloads.example.io/protected/files/my-enterprise-trial.tar.gz
+      example_hive_catalog_host: on-prem-a-m.us-west1-a.c.my-demo.internal
+      example_root_ufs_uri: hdfs://on-prem-a-m.us-west1-a.c.my-demo.internal:8020
+      example_site_properties: example.user.file.passive.cache.enabled=false;example.user.ufs.block.read.location.policy=example.client.block.policy.DeterministicHashPolicy;example.user.ufs.block.read.location.policy.deterministic.hash.shards=3;example.master.mount.table.root.option.example.underfs.hdfs.remote=true
+      example_ssd_capacity_usage: '60'
+      example_sync_list: /tmp
     serviceAccountScopes:
     - https://www.googleapis.com/auth/bigquery
     - https://www.googleapis.com/auth/bigtable.admin.table
@@ -20,12 +20,12 @@ config:
     - https://www.googleapis.com/auth/devstorage.full_control
     - https://www.googleapis.com/auth/devstorage.read_write
     - https://www.googleapis.com/auth/logging.write
-    subnetworkUri: https://www.googleapis.com/compute/v1/projects/alluxio-demo/regions/us-east1/subnetworks/subnet1-b
-    zoneUri: https://www.googleapis.com/compute/v1/projects/alluxio-demo/zones/us-east1-d
+    subnetworkUri: https://www.googleapis.com/compute/v1/projects/my-demo/regions/us-east1/subnetworks/subnet1-b
+    zoneUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d
   initializationActions:
-  - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-dataproc.sh
+  - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-dataproc.sh
     executionTimeout: 600s
-  - executableFile: gs://alluxio-public/gcp-burst-tutorial/stable/alluxio-presto-conf.sh
+  - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-presto-conf.sh
     executionTimeout: 
       seconds: 600
       nanos: 0
@@ -34,7 +34,7 @@ config:
       bootDiskSizeGb: 1000
       bootDiskType: pd-standard
     imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb10-20200409-000000-rc01
-    machineTypeUri: https://www.googleapis.com/compute/v1/projects/alluxio-demo/zones/us-east1-d/machineTypes/n1-highmem-16
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d/machineTypes/n1-highmem-16
     minCpuPlatform: AUTOMATIC
     numInstances: 1
     preemptibility: NON_PREEMPTIBLE
@@ -82,9 +82,9 @@ config:
       mapred:yarn.app.mapreduce.am.resource.cpu-vcores: '1'
       mapred:yarn.app.mapreduce.am.resource.mb: '5120'
       presto-catalog:onprem.connector.name: hive-hadoop2
-      presto-catalog:onprem.hive.config.resources: /opt/alluxio/conf/presto/core-site.xml
+      presto-catalog:onprem.hive.config.resources: /opt/example/conf/presto/core-site.xml
       presto-catalog:onprem.hive.force-local-scheduling: 'false'
-      presto-catalog:onprem.hive.metastore.uri: thrift://on-prem-a-m.us-west1-a.c.alluxio-demo.internal:9083
+      presto-catalog:onprem.hive.metastore.uri: thrift://on-prem-a-m.us-west1-a.c.my-demo.internal:9083
       presto-jvm:MaxHeapSize: 85196m
       presto:query.max-memory-per-node: 51117MB
       presto:query.max-total-memory-per-node: 51117MB
@@ -111,7 +111,7 @@ config:
       bootDiskType: pd-standard
       numLocalSsds: 2
     imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb10-20200409-000000-rc01
-    machineTypeUri: https://www.googleapis.com/compute/v1/projects/alluxio-demo/zones/us-east1-d/machineTypes/n1-highmem-16
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d/machineTypes/n1-highmem-16
     minCpuPlatform: AUTOMATIC
     numInstances: 5
     preemptibility: NON_PREEMPTIBLE

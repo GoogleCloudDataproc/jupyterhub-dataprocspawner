@@ -17,4 +17,29 @@ config:
       bootDiskType: pd-standard
       bootDiskSizeGb: 500
       numLocalSsds: 0
+    accelerators:
+    - acceleratorTypeUri: projects/my-project/zones/us-east1-d/acceleratorTypes/nvidia-tesla-v100
+      acceleratorCount: 1
+    imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb9-20200511-000000-rc01
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-project/zones/us-east1-d/machineTypes/n1-standard-4
+    minCpuPlatform: AUTOMATIC
     imageUri: projects/test-project/global/images/test-image
+  workerConfig:
+    diskConfig:
+      bootDiskSizeGb: 1000
+      bootDiskType: pd-standard
+      numLocalSsds: 2
+    imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb10-20200409-000000-rc01
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d/machineTypes/n1-highmem-16
+    minCpuPlatform: AUTOMATIC
+    numInstances: 5
+    preemptibility: NON_PREEMPTIBLE
+  secondaryWorkerConfig:
+    diskConfig:
+      bootDiskSizeGb: 100
+      bootDiskType: pd-standard
+    imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb9-20200511-000000-rc01
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-project/zones/us-east1-d/machineTypes/n1-standard-4
+    minCpuPlatform: AUTOMATIC
+    numInstances: 2
+    isPreemptible: true

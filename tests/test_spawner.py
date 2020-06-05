@@ -451,6 +451,8 @@ class TestDataprocSpawner:
             'min_cpu_platform': 'AUTOMATIC'
           }
         },
+        'secondary_worker_config': {},
+        'worker_config': {},
         'software_config': {
           'image_version': '1.4.16-debian9',
           'optional_components': ['JUPYTER', 'ANACONDA'],
@@ -504,7 +506,8 @@ class TestDataprocSpawner:
     # Test Duration protobuf
     assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
   
-  def test_subnetwork(self, monkeypatch):
+  def test_uris(self, monkeypatch):
+    """ Test that all official URI patterns work and geo location match."""
     import yaml
 
     def test_read_file_string(*args, **kwargs):
@@ -589,8 +592,11 @@ class TestDataprocSpawner:
 
     config_built = spawner._build_cluster_config()
 
-    subnet_region = config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3]
-    assert subnet_region == spawner.region
+    assert config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3] == spawner.region
+    assert config_built['config']['master_config']['machine_type_uri'].split('/')[-3] == spawner.zone
+    assert config_built['config']['worker_config']['machine_type_uri'].split('/')[-3] == spawner.zone
+    assert config_built['config']['secondary_worker_config']['machine_type_uri'].split('/')[-3] == spawner.zone
+    assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'].split('/')[-3] == spawner.zone
     
         
 
