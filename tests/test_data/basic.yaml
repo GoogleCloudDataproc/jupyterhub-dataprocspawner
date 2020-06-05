@@ -17,4 +17,28 @@ config:
       bootDiskType: pd-standard
       bootDiskSizeGb: 500
       numLocalSsds: 0
+    accelerators:
+    - acceleratorTypeUri: nvidia-tesla-v100
+      acceleratorCount: 1
+    machineTypeUri: n1-standard-4
+    minCpuPlatform: AUTOMATIC
     imageUri: projects/test-project/global/images/test-image
+  workerConfig:
+    diskConfig:
+      bootDiskSizeGb: 1000
+      bootDiskType: pd-standard
+      numLocalSsds: 2
+    imageUri: projects/test-project/global/images/test-image
+    machineTypeUri: n1-highmem-16
+    minCpuPlatform: AUTOMATIC
+    numInstances: 5
+    preemptibility: NON_PREEMPTIBLE
+  secondaryWorkerConfig:
+    diskConfig:
+      bootDiskSizeGb: 100
+      bootDiskType: pd-standard
+    imageUri: projects/test-project/global/images/test-image
+    machineTypeUri: n1-standard-4
+    minCpuPlatform: AUTOMATIC
+    numInstances: 2
+    isPreemptible: true

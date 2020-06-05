@@ -662,11 +662,13 @@ class DataprocSpawner(Spawner):
 
     return data.copy()
   
-  def _check_uri_geo(self, uri, uri_geo_slice, expected_geo):
+  def _check_uri_geo(self, uri, uri_geo_slice, expected_geo, trim_zone=False):
     uri_geo = None
     uri_data = uri.split('/')
     if len(uri_data) > 1:
       uri_geo = uri_data[uri_geo_slice]
+      if trim_zone:
+        uri_geo = uri_geo[:-2]
       if uri_geo not in [expected_geo, 'global']:
         raise RuntimeError(f'''The location {uri_geo} of the uri {uri} in
             the yaml file does not match the Dataproc Hub's one {expected_geo}.
@@ -919,7 +921,7 @@ class DataprocSpawner(Spawner):
     
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
-
+    
     # Checks that cluster subnet location matches with the Hub's one.
     # Must support all string patterns for subnetworkUri:
     # https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig
@@ -929,7 +931,32 @@ class DataprocSpawner(Spawner):
         uri_geo_slice=-3,
         expected_geo=self.region
       )
-   
+    
+    for server_group in ['master_config', 'worker_config', 'secondary_worker_config']:
+      if server_group in cluster_data['config']:
+        # We do not check the zone because the user form overwrites it.
+        # if 'zone_uri' in cluster_data['config']['gce_cluster_config']:
+        #   self._check_uri_geo(
+        #     uri=cluster_data['config']['gce_cluster_config']['zone_uri'],
+        #     uri_geo_slice=-1,
+        #     expected_geo=self.zone
+        #   )
+        # Machine types must be in the same zone as the Dataproc Cluster.
+        if 'machine_type_uri' in cluster_data['config'][server_group]:
+          self._check_uri_geo(
+            uri=cluster_data['config'][server_group]['machine_type_uri'],
+            uri_geo_slice=-3,
+            expected_geo=self.zone
+          )
+        # Accelerator types must be in the same zone as the Dataproc Cluster.
+        if 'accelerators' in cluster_data['config'][server_group]:
+          for acc in cluster_data['config'][server_group]['accelerators']:
+            self._check_uri_geo(
+              uri=acc['accelerator_type_uri'],
+              uri_geo_slice=-3,
+              expected_geo=self.zone
+            )
+       
     # Temporarily disable Component Gateway until handled by core product.
     # TODO(mayran): Remove when code in prod.
     if (cluster_data['config']
