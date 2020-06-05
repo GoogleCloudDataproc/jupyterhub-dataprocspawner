@@ -436,8 +436,8 @@ class DataprocSpawner(Spawner):
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
 
     # Properties and Metadata might have some values that needs to remain with 
-    # CamelCase so we remove the properties from the conversion from CamelCase 
-    # to snake_case and add the properties back afterwards using snake_case key.
+    # CamelCase so we remove the properties/metadata from the conversion from 
+    # CamelCase to snake_case and add the properties/metadata back afterwards.
     skip_properties = {}
     skip_metadata = {}
 
@@ -456,8 +456,8 @@ class DataprocSpawner(Spawner):
     if skip_properties:
       config_dict['config']['software_config']['properties'] = skip_properties
 
-    if skip_properties:
-        config_dict['config']['gce_cluster_config']['metadata'] = skip_metadata
+    if skip_metadata:
+      config_dict['config']['gce_cluster_config']['metadata'] = skip_metadata
 
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
@@ -662,11 +662,13 @@ class DataprocSpawner(Spawner):
 
     return data.copy()
   
-  def _check_uri_geo(self, uri, uri_geo_slice, expected_geo):
+  def _check_uri_geo(self, uri, uri_geo_slice, expected_geo, trim_zone=False):
     uri_geo = None
     uri_data = uri.split('/')
     if len(uri_data) > 1:
       uri_geo = uri_data[uri_geo_slice]
+      if trim_zone:
+        uri_geo = uri_geo[:-2]
       if uri_geo not in [expected_geo, 'global']:
         raise RuntimeError(f'''The location {uri_geo} of the uri {uri} in
             the yaml file does not match the Dataproc Hub's one {expected_geo}.
@@ -778,9 +780,10 @@ class DataprocSpawner(Spawner):
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
     if autoscaling_policy:
       cluster_data['config']['autoscaling_config'] = {
-        "policy_uri": f'''https://www.googleapis.com/compute/v1/projects/
-                      {self.project}/locations/{self.region}/
-                      autoscalingPolicies/{autoscaling_policy}'''
+        "policy_uri": (
+              f'''https://www.googleapis.com/compute/v1/projects/'''
+              f'''{self.project}/locations/{self.region}/'''
+              f'''autoscalingPolicies/{autoscaling_policy}''')
       }
 
     if self._is_custom_hive_settings():
@@ -919,7 +922,7 @@ class DataprocSpawner(Spawner):
     
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
-
+    
     # Checks that cluster subnet location matches with the Hub's one.
     # Must support all string patterns for subnetworkUri:
     # https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig
@@ -929,7 +932,22 @@ class DataprocSpawner(Spawner):
         uri_geo_slice=-3,
         expected_geo=self.region
       )
-   
+    
+    for server_group in ['master_config', 'worker_config', 'secondary_worker_config']:
+      if server_group in cluster_data['config']:
+        # We do not check the zone because the user form overwrites it.
+        # MachineTypes and Accelerators must be in the same zone as the Dataproc
+        # Cluster. Removes the zone reference if YAML provides a full uri.
+        if 'machine_type_uri' in cluster_data['config'][server_group]:
+          cluster_data['config'][server_group]['machine_type_uri'] = (
+              cluster_data['config'][server_group]['machine_type_uri'].split('/')[-1])
+        # Accelerator types must be in the same zone as the Dataproc Cluster.
+        if 'accelerators' in cluster_data['config'][server_group]:
+          for acc_idx, acc_val in enumerate(cluster_data['config'][server_group]
+              ['accelerators']):
+            (cluster_data['config'][server_group]['accelerators'][acc_idx]
+                ['accelerator_type_uri']) = (acc_val['accelerator_type_uri'].split('/')[-1])
+       
     # Temporarily disable Component Gateway until handled by core product.
     # TODO(mayran): Remove when code in prod.
     if (cluster_data['config']

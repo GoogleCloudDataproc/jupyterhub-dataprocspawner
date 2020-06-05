@@ -451,6 +451,8 @@ class TestDataprocSpawner:
             'min_cpu_platform': 'AUTOMATIC'
           }
         },
+        'secondary_worker_config': {},
+        'worker_config': {},
         'software_config': {
           'image_version': '1.4.16-debian9',
           'optional_components': ['JUPYTER', 'ANACONDA'],
@@ -493,7 +495,7 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'basic.yaml',
+      'cluster_type': 'duration.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -504,7 +506,43 @@ class TestDataprocSpawner:
     # Test Duration protobuf
     assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
   
-  def test_subnetwork(self, monkeypatch):
+  def test_metadata(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['gce_cluster_config']['metadata'] == {
+      'm1': 'v1',
+      'm2': 'v2'
+    }
+  
+  def test_uris(self, monkeypatch):
+    """ Test that all official URI patterns work and geo location match."""
     import yaml
 
     def test_read_file_string(*args, **kwargs):
@@ -583,14 +621,20 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'basic.yaml',
-      'cluster_zone': 'test-form1-a'
+      'cluster_type': 'basic_uri.yaml',
+      'cluster_zone': 'us-east1-d'
     }
+
+    user_zone = spawner.user_options['cluster_zone']
+    user_region = user_zone[:-2]
 
     config_built = spawner._build_cluster_config()
 
-    subnet_region = config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3]
-    assert subnet_region == spawner.region
+    assert config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3] == user_region
+    assert config_built['config']['master_config']['machine_type_uri'] == 'n1-standard-4'
+    assert config_built['config']['worker_config']['machine_type_uri'] == 'n1-highmem-16'
+    assert config_built['config']['secondary_worker_config']['machine_type_uri'] == 'n1-standard-4'
+    assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
     
         
 
