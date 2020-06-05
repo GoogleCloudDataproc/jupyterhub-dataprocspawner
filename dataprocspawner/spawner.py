@@ -436,8 +436,8 @@ class DataprocSpawner(Spawner):
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
 
     # Properties and Metadata might have some values that needs to remain with 
-    # CamelCase so we remove the properties from the conversion from CamelCase 
-    # to snake_case and add the properties back afterwards using snake_case key.
+    # CamelCase so we remove the properties/metadata from the conversion from 
+    # CamelCase to snake_case and add the properties/metadata back afterwards.
     skip_properties = {}
     skip_metadata = {}
 
@@ -456,8 +456,8 @@ class DataprocSpawner(Spawner):
     if skip_properties:
       config_dict['config']['software_config']['properties'] = skip_properties
 
-    if skip_properties:
-        config_dict['config']['gce_cluster_config']['metadata'] = skip_metadata
+    if skip_metadata:
+      config_dict['config']['gce_cluster_config']['metadata'] = skip_metadata
 
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
@@ -780,9 +780,10 @@ class DataprocSpawner(Spawner):
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
     if autoscaling_policy:
       cluster_data['config']['autoscaling_config'] = {
-        "policy_uri": f'''https://www.googleapis.com/compute/v1/projects/
-                      {self.project}/locations/{self.region}/
-                      autoscalingPolicies/{autoscaling_policy}'''
+        "policy_uri": (
+              f'''https://www.googleapis.com/compute/v1/projects/'''
+              f'''{self.project}/locations/{self.region}/'''
+              f'''autoscalingPolicies/{autoscaling_policy}''')
       }
 
     if self._is_custom_hive_settings():
@@ -935,27 +936,17 @@ class DataprocSpawner(Spawner):
     for server_group in ['master_config', 'worker_config', 'secondary_worker_config']:
       if server_group in cluster_data['config']:
         # We do not check the zone because the user form overwrites it.
-        # if 'zone_uri' in cluster_data['config']['gce_cluster_config']:
-        #   self._check_uri_geo(
-        #     uri=cluster_data['config']['gce_cluster_config']['zone_uri'],
-        #     uri_geo_slice=-1,
-        #     expected_geo=self.zone
-        #   )
-        # Machine types must be in the same zone as the Dataproc Cluster.
+        # MachineTypes and Accelerators must be in the same zone as the Dataproc
+        # Cluster. Removes the zone reference if YAML provides a full uri.
         if 'machine_type_uri' in cluster_data['config'][server_group]:
-          self._check_uri_geo(
-            uri=cluster_data['config'][server_group]['machine_type_uri'],
-            uri_geo_slice=-3,
-            expected_geo=self.zone
-          )
+          cluster_data['config'][server_group]['machine_type_uri'] = (
+              cluster_data['config'][server_group]['machine_type_uri'].split('/')[-1])
         # Accelerator types must be in the same zone as the Dataproc Cluster.
         if 'accelerators' in cluster_data['config'][server_group]:
-          for acc in cluster_data['config'][server_group]['accelerators']:
-            self._check_uri_geo(
-              uri=acc['accelerator_type_uri'],
-              uri_geo_slice=-3,
-              expected_geo=self.zone
-            )
+          for acc_idx, acc_val in enumerate(cluster_data['config'][server_group]
+              ['accelerators']):
+            (cluster_data['config'][server_group]['accelerators'][acc_idx]
+                ['accelerator_type_uri']) = (acc_val['accelerator_type_uri'].split('/')[-1])
        
     # Temporarily disable Component Gateway until handled by core product.
     # TODO(mayran): Remove when code in prod.
