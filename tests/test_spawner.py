@@ -586,17 +586,20 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'basic.yaml',
-      'cluster_zone': 'test-form1-a'
+      'cluster_type': 'basic_uri.yaml',
+      'cluster_zone': 'us-east1-d'
     }
+
+    user_zone = spawner.user_options['cluster_zone']
+    user_region = user_zone[:-2]
 
     config_built = spawner._build_cluster_config()
 
-    assert config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3] == spawner.region
-    assert config_built['config']['master_config']['machine_type_uri'].split('/')[-3] == spawner.zone
-    assert config_built['config']['worker_config']['machine_type_uri'].split('/')[-3] == spawner.zone
-    assert config_built['config']['secondary_worker_config']['machine_type_uri'].split('/')[-3] == spawner.zone
-    assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'].split('/')[-3] == spawner.zone
+    assert config_built['config']['gce_cluster_config']['subnetwork_uri'].split('/')[-3] == user_region
+    assert config_built['config']['master_config']['machine_type_uri'].split('/')[-3] == user_zone
+    assert config_built['config']['worker_config']['machine_type_uri'].split('/')[-3] == user_zone
+    assert config_built['config']['secondary_worker_config']['machine_type_uri'].split('/')[-3] == user_zone
+    assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'].split('/')[-3] == user_zone
     
         
 
