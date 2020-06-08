@@ -935,27 +935,17 @@ class DataprocSpawner(Spawner):
     for server_group in ['master_config', 'worker_config', 'secondary_worker_config']:
       if server_group in cluster_data['config']:
         # We do not check the zone because the user form overwrites it.
-        # if 'zone_uri' in cluster_data['config']['gce_cluster_config']:
-        #   self._check_uri_geo(
-        #     uri=cluster_data['config']['gce_cluster_config']['zone_uri'],
-        #     uri_geo_slice=-1,
-        #     expected_geo=self.zone
-        #   )
-        # Machine types must be in the same zone as the Dataproc Cluster.
+        # MachineTypes and Accelerators must be in the same zone as the Dataproc
+        # Cluster. Removes the zone reference if YAML provides a full uri.
         if 'machine_type_uri' in cluster_data['config'][server_group]:
-          self._check_uri_geo(
-            uri=cluster_data['config'][server_group]['machine_type_uri'],
-            uri_geo_slice=-3,
-            expected_geo=self.zone
-          )
+          cluster_data['config'][server_group]['machine_type_uri'] = (
+              cluster_data['config'][server_group]['machine_type_uri'].split('/')[-1])
         # Accelerator types must be in the same zone as the Dataproc Cluster.
         if 'accelerators' in cluster_data['config'][server_group]:
-          for acc in cluster_data['config'][server_group]['accelerators']:
-            self._check_uri_geo(
-              uri=acc['accelerator_type_uri'],
-              uri_geo_slice=-3,
-              expected_geo=self.zone
-            )
+          for acc_idx, acc_val in enumerate(cluster_data['config'][server_group]
+              ['accelerators']):
+            (cluster_data['config'][server_group]['accelerators'][acc_idx]
+                ['accelerator_type_uri']) = (acc_val['accelerator_type_uri'].split('/')[-1])
        
     # Temporarily disable Component Gateway until handled by core product.
     # TODO(mayran): Remove when code in prod.
