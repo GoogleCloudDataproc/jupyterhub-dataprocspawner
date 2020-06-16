@@ -780,9 +780,10 @@ class DataprocSpawner(Spawner):
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
     if autoscaling_policy:
       cluster_data['config']['autoscaling_config'] = {
-        "policy_uri": f'''https://www.googleapis.com/compute/v1/projects/
-                      {self.project}/locations/{self.region}/
-                      autoscalingPolicies/{autoscaling_policy}'''
+        "policy_uri": (
+              f'''https://www.googleapis.com/compute/v1/projects/'''
+              f'''{self.project}/locations/{self.region}/'''
+              f'''autoscalingPolicies/{autoscaling_policy}''')
       }
 
     if self._is_custom_hive_settings():
