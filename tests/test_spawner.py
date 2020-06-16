@@ -495,7 +495,7 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'basic.yaml',
+      'cluster_type': 'duration.yaml',
       'cluster_zone': 'test-form1-a'
     }
 
@@ -505,6 +505,41 @@ class TestDataprocSpawner:
     assert config_built['config']['initialization_actions'][0]['execution_timeout']['seconds'] == 600
     # Test Duration protobuf
     assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
+  
+  def test_metadata(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
+      return config_string
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+        
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['gce_cluster_config']['metadata'] == {
+      'm1': 'v1',
+      'm2': 'v2'
+    }
   
   def test_uris(self, monkeypatch):
     """ Test that all official URI patterns work and geo location match."""
