@@ -2,6 +2,9 @@ clusterName: 'overwrite'
 config:
   gceClusterConfig:
     subnetworkUri: default
+    metadata:
+      m1: "v1"
+      m2: "v2"
   initializationActions: 
   - executableFile: gs://dataproc-initialization-actions/python/pip-install.sh
   softwareConfig: 
