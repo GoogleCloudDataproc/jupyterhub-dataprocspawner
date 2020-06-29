@@ -675,7 +675,39 @@ class DataprocSpawner(Spawner):
             Please, contact your admnistrator. ''')
     return uri_geo or uri
 
+  def _validate_image_version_supports_component_gateway(self, image_version):
+    """Validate whether given image version supports Component Gateway.
 
+    Earlier image versions do not support CG with JupyterHub. This function
+    takes a Dataproc image version specification like `1.3.25-debian9` or `1.5`
+    and returns whether Component Gateway is supported.
+    """
+    # Map minor version to minimum subminor that supports CG with JupyterHub
+    min_supported_images = {
+        '1.3': 59,
+        '1.4': 30,
+        '1.5': 5,
+        '2.0': 0
+    }
+    version = image_version.split('-')[0]
+
+    # Extract minor and subminor versions ('1.3.5' -> '1.3', 5)
+    if len(version.split('.')) < 3:
+      # Subminor version not specified, head images always support CG
+      return True
+    try:
+      subminor_version = int(version.split('.')[2])
+    except ValueError as e:
+      self.log.info('Failed to parse image version "%s": %s' % (image_version, e))
+      # Something weird is going on with image version format, fail open
+      return True
+
+    minor_version = '.'.join(version.split('.')[:2])
+    if minor_version in min_supported_images:
+      return subminor_version >= min_supported_images[minor_version]
+
+    # Unrecognized minor version, fail open
+    return True
 
 
 ################################################################################
@@ -910,7 +942,14 @@ class DataprocSpawner(Spawner):
       ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
     
     if 'image_version' not in cluster_data['config']['software_config']:
-      cluster_data['config']['software_config']['image_version'] = '1.4.16-debian9'
+      cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
+
+    if (cluster_data['config']
+        .setdefault('endpoint_config', {})
+        .setdefault('enable_http_port_access', False)):
+      if not self._validate_image_version_supports_component_gateway(
+          cluster_data['config']['software_config']['image_version']):
+        cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
 
     if self.force_add_jupyter_component:
       cluster_data['config']['software_config'].setdefault('optional_components', [])
@@ -919,10 +958,10 @@ class DataprocSpawner(Spawner):
         optional_components.append('JUPYTER')
       if 'ANACONDA' not in optional_components:
         optional_components.append('ANACONDA')
-    
+
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
-    
+
     # Checks that cluster subnet location matches with the Hub's one.
     # Must support all string patterns for subnetworkUri:
     # https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig
@@ -932,7 +971,7 @@ class DataprocSpawner(Spawner):
         uri_geo_slice=-3,
         expected_geo=self.region
       )
-    
+
     for server_group in ['master_config', 'worker_config', 'secondary_worker_config']:
       if server_group in cluster_data['config']:
         # We do not check the zone because the user form overwrites it.
@@ -947,14 +986,7 @@ class DataprocSpawner(Spawner):
               ['accelerators']):
             (cluster_data['config'][server_group]['accelerators'][acc_idx]
                 ['accelerator_type_uri']) = (acc_val['accelerator_type_uri'].split('/')[-1])
-       
-    # Temporarily disable Component Gateway until handled by core product.
-    # TODO(mayran): Remove when code in prod.
-    if (cluster_data['config']
-        .setdefault('endpoint_config', {})
-        .setdefault('enable_http_port_access', False)):
-      cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
-    
+
     # Temporarily disable setting preemptibility field until Dataproc client
     # libraries support the enum value
     if (cluster_data['config'].setdefault('master_config', {})):

@@ -3,6 +3,8 @@ config:
   autoscalingConfig:
     policyUri: projects/my-project/regions/us-east1/autoscalingPolicies/policy-abc123
   configBucket: bucket-dash
+  endpointConfig:
+      enableHttpPortAccess: true
   gceClusterConfig:
     metadata:
       KeyCamelCase: UlowUlow

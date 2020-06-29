@@ -433,7 +433,7 @@ class TestDataprocSpawner:
         'autoscaling_config': {
           'policy_uri': 'projects/my-project/regions/us-east1/autoscalingPolicies/policy-abc123'},
         'config_bucket': 'bucket-dash',
-        'endpoint_config': {'enable_http_port_access': False},
+        'endpoint_config': {'enable_http_port_access': True},
         'gce_cluster_config': {
           'metadata': {
             'KeyCamelCase': 'UlowUlow',
@@ -454,7 +454,7 @@ class TestDataprocSpawner:
         'secondary_worker_config': {},
         'worker_config': {},
         'software_config': {
-          'image_version': '1.4.16-debian9',
+          'image_version': '1.4-debian9',
           'optional_components': ['JUPYTER', 'ANACONDA'],
           'properties': {
             'dataproc:jupyter.hub.args': 'test-args-str',
@@ -595,7 +595,7 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
 
     assert config_built['config']['gce_cluster_config']['subnetwork_uri'] == "projects/test-project/regions/us-east1/subnetworks/default"
-  
+
 
   def test_locations(self, monkeypatch):
     import yaml
@@ -603,14 +603,14 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/basic_uri.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client())
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-        
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -635,6 +635,27 @@ class TestDataprocSpawner:
     assert config_built['config']['worker_config']['machine_type_uri'] == 'n1-highmem-16'
     assert config_built['config']['secondary_worker_config']['machine_type_uri'] == 'n1-standard-4'
     assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
-    
-        
 
+  def test_image_version_supports_component_gateway(self, monkeypatch):
+    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+
+    assert spawner._validate_image_version_supports_component_gateway('1.3') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.3-debian9') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.3.6-debian9') is False
+    assert spawner._validate_image_version_supports_component_gateway('1.3.59-debian9') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.3.999-debian9') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.4-debian10') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.4.6-debian10') is False
+    assert spawner._validate_image_version_supports_component_gateway('1.4.31-debian10') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.5-debian10') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.5.0-debian10') is False
+    assert spawner._validate_image_version_supports_component_gateway('1.5.5-debian10') is True
+    assert spawner._validate_image_version_supports_component_gateway('2') is True
+    assert spawner._validate_image_version_supports_component_gateway('2.0') is True
+    assert spawner._validate_image_version_supports_component_gateway('2.0.0') is True
+    assert spawner._validate_image_version_supports_component_gateway('2.3.0') is True
+    assert spawner._validate_image_version_supports_component_gateway('2.0.0-RC1-preview') is True
+    assert spawner._validate_image_version_supports_component_gateway('weird-unexpected-version-124.3.v2.2020-02-15') is True
+    assert spawner._validate_image_version_supports_component_gateway('1.3.weird-version-again') is True
