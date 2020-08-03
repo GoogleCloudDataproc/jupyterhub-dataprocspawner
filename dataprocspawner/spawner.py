@@ -62,7 +62,7 @@ class DataprocSpawner(Spawner):
 
   Reference: https://jupyterhub.readthedocs.io/en/stable/reference/spawners.html
   """
-  
+
   poll_interval = 5
 
   # Since creating a cluster takes longer than the 30 second default,
@@ -81,7 +81,7 @@ class DataprocSpawner(Spawner):
 
       This must be configured.
       """,)
-  
+
   region = Unicode(
       'us-central1',
       config=True,
@@ -96,56 +96,56 @@ class DataprocSpawner(Spawner):
       'us-central1-a',
       config=True,
       help=""" The zone in which to run the Dataproc cluster.""",)
-  
+
   cluster_data = Dict(
     config=True,
-    help=""" 
+    help="""
     Admin provided dict for setting up Dataproc cluster. If this field is not
     provided, the cluster configuration is set using YAML files on GCE. """,)
 
   gcs_notebooks = Unicode(
       config=True,
-      help=""" 
+      help="""
       GCS location to save Notebooks for a stateful experience.
 
       This must be configured.
       """,)
-  
+
   gcs_user_folder = Unicode(
     config=True,
     help=""" GCS location to save the user's Notebooks. """,)
-  
+
   dataproc_configs = Unicode(
       config=True,
-      help=""" 
+      help="""
       Comma separated list of the dataproc configurations available in the user spawning form.
       Each value should contain the top bucket name (can be without gs://) and path to the files from
-      that bucket name. 
-      
+      that bucket name.
+
       Example 1 config file: 'bucket/configs/file.yaml' or the same value 'gs://bucket/configs/file.yaml'
       Example 2 config files: 'bucket/configs/file1.yaml,bucket/configs/file2.yaml
 
       This must be configured
       """,)
-  
+
   dataproc_default_subnet = Unicode(
       config=True,
-      help=""" 
-      GCP subnet where to deploy the spawned Cloud Dataproc cluster. If not 
+      help="""
+      GCP subnet where to deploy the spawned Cloud Dataproc cluster. If not
       provided in the config yaml, defaults to the same as JupyterHub.
       """,)
-  
+
   dataproc_service_account = Unicode(
       config=True,
-      help=""" 
+      help="""
       This solution uses a default service account for all spawned cluster if
       not provided by the administrator.
       """,)
-  
+
   dataproc_locations_list = Unicode(
       "",
       config=True,
-      help=""" 
+      help="""
       Comma separated list of the zone letters where to spawn Cloud Dataproc in
       the JupyterHub region.
       Example: "a,b"
@@ -174,7 +174,7 @@ class DataprocSpawner(Spawner):
     '',
     config=True,
     help="""
-    The gcs path where default notebooks stored. Don't load default 
+    The gcs path where default notebooks stored. Don't load default
     notebooks if variable is empty.
     """,)
 
@@ -196,10 +196,10 @@ class DataprocSpawner(Spawner):
       ],
       config=True,
       help="""
-      Whitelist of environment variables for the single-user server to inherit 
-      from the JupyterHub process. This whitelist ensures that sensitive 
-      information in the JupyterHub process's environment (such as 
-      `CONFIGPROXY_AUTH_TOKEN`) is not passed to the single-user server's 
+      Whitelist of environment variables for the single-user server to inherit
+      from the JupyterHub process. This whitelist ensures that sensitive
+      information in the JupyterHub process's environment (such as
+      `CONFIGPROXY_AUTH_TOKEN`) is not passed to the single-user server's
       process.
       """,)
 
@@ -237,27 +237,27 @@ class DataprocSpawner(Spawner):
     if self.gcs_notebooks:
       if self.gcs_notebooks.startswith('gs://'):
         self.gcs_notebooks = self.gcs_notebooks[5:]
-      
+
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
-      
-  
+
+
 ################################################################################
 # Required functions
 ################################################################################
   async def start(self):
     """ Creates a Dataproc cluster.
-    If a cluster with the same name already exists, logs a warning and returns 
+    If a cluster with the same name already exists, logs a warning and returns
     the same values as if creating the cluster.
-    
+
     Returns:
       (String, Int): FQDN of the master node and the port it's accessible at.
     """
     if await self.get_cluster_status(self.clustername()) == ClusterStatus.State.DELETING:
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
-    
+
     elif await self.exists(self.clustername()):
       self.log.warning(f'Cluster named {self.clustername()} already exists')
-    
+
     else:
       if self.gcs_user_folder:
         self.create_example_notebooks()
@@ -266,7 +266,7 @@ class DataprocSpawner(Spawner):
       start_notebook_cmd = self.cmd + self.get_args()
       start_notebook_cmd = ' '.join(start_notebook_cmd)
       self.log.info(start_notebook_cmd)
-    
+
     return (self.getDataprocMasterFQDN(), self.port)
 
   async def stop(self):
@@ -283,8 +283,8 @@ class DataprocSpawner(Spawner):
 
   async def poll(self):
     status = await self.get_cluster_status(self.clustername())
-    if status is None or status in (ClusterStatus.State.ERROR, 
-                                    ClusterStatus.State.DELETING, 
+    if status is None or status in (ClusterStatus.State.ERROR,
+                                    ClusterStatus.State.DELETING,
                                     ClusterStatus.State.UNKNOWN):
       return 1
     elif status == ClusterStatus.State.CREATING:
@@ -301,7 +301,7 @@ class DataprocSpawner(Spawner):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
     """
-    
+
     # Skips the form if no config provided.
     if not self.dataproc_configs:
       return ""
@@ -325,7 +325,7 @@ class DataprocSpawner(Spawner):
     ])
 
   def options_from_form(self, formdata):
-    """ 
+    """
     Returns the selected option selected by the user. It sets self.user_options.
     """
     self.log.info(f'''formdata is {formdata}''')
@@ -345,7 +345,7 @@ class DataprocSpawner(Spawner):
 
       options[key] = value
 
-    self.log.info(f'''User selected cluster: {options.get('cluster_type')} 
+    self.log.info(f'''User selected cluster: {options.get('cluster_type')}
           and zone: {self.zone} in region {self.region}.''')
 
     return options
@@ -354,7 +354,7 @@ class DataprocSpawner(Spawner):
 # Overwrite
 ################################################################################
   def get_env(self):
-    """ Overwrites the original function to get a new Hub URL accessible by 
+    """ Overwrites the original function to get a new Hub URL accessible by
     Dataproc when JupyterHub runs on an AI Notebooks which by default would
     return a local address otherwise.
     """
@@ -380,8 +380,8 @@ class DataprocSpawner(Spawner):
   def getDataprocMasterFQDN(self):
     """ Zonal DNS is in the form [CLUSTER NAME]-m.[ZONE].c.[PROJECT ID].internal
     If the project is domain-scoped, then PROJECT ID needs to be in the form
-    [PROJECT NAME].[DOMAIN]. 
-    More info here: 
+    [PROJECT NAME].[DOMAIN].
+    More info here:
     https://cloud.google.com/compute/docs/internal-dns#instance-fully-qualified-domain-names
 
     Returns
@@ -395,7 +395,7 @@ class DataprocSpawner(Spawner):
     else:
       #return f'{self.clustername()}-m.c.{self.project}.internal'
       return f'{self.clustername()}-m.{self.zone}.c.{self.project}.internal'
-  
+
   def camelcase_to_snakecase(self, cc):
     """ Converts yaml's keys from CamelCase to snake_case so the cluster config
     is understandable by the Dataproc's Python client. """
@@ -412,13 +412,13 @@ class DataprocSpawner(Spawner):
     file_path = file_path.replace('gs://', '').split('/')
     bn = file_path[0]
     fp = "/".join(file_path[1:])
-    
+
     working_bucket = self.gcs_client.get_bucket(bn)
     config_blob = working_bucket.get_blob(fp)
     config_string = config_blob.download_as_string()
     config_string = config_string.decode('utf-8')
     return config_string
-  
+
   def get_cluster_definition(self, file_path):
     """ Returns the content of a GCS file
 
@@ -426,7 +426,7 @@ class DataprocSpawner(Spawner):
     there is not comment in the yaml file. Find Dataproc properties here:
     https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/ClusterConfig
     https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/cluster-properties
-    
+
     Args:
       String file_path: path to the file to read. Includes bucket and folders in the bucket
     Returns:
@@ -435,8 +435,8 @@ class DataprocSpawner(Spawner):
     config_string = self.read_gcs_file(file_path)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
 
-    # Properties and Metadata might have some values that needs to remain with 
-    # CamelCase so we remove the properties/metadata from the conversion from 
+    # Properties and Metadata might have some values that needs to remain with
+    # CamelCase so we remove the properties/metadata from the conversion from
     # CamelCase to snake_case and add the properties/metadata back afterwards.
     skip_properties = {}
     skip_metadata = {}
@@ -448,7 +448,7 @@ class DataprocSpawner(Spawner):
     if 'metadata' in config_dict['config'].setdefault('gceClusterConfig', {}):
       skip_metadata = config_dict['config']['gceClusterConfig']['metadata']
       del config_dict['config']['gceClusterConfig']['metadata']
-    
+
     config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
@@ -473,9 +473,9 @@ class DataprocSpawner(Spawner):
     bucket_name, folder_name = self._split_gcs_path(default_path)
     destination_bucket_name, destination_folder_name = self._split_gcs_path(user_folder)
     destination_folder_name += self.default_notebooks_folder
-    self.log.debug(f'''Copy from {bucket_name}/{folder_name} to 
+    self.log.debug(f'''Copy from {bucket_name}/{folder_name} to
         {destination_bucket_name}/{destination_folder_name}''')
-    
+
     source_bucket = storage_client.bucket(bucket_name)
     blobs = storage_client.list_blobs(bucket_name, prefix=folder_name)
     for blob in blobs:
@@ -553,13 +553,13 @@ class DataprocSpawner(Spawner):
     if cluster is not None:
       return cluster.status.state
     return None
-  
+
   async def exists(self, clustername):
     return (await self.get_cluster(clustername)) is not None
 
   async def get_cluster(self, clustername):
     try:
-      return self.dataproc_client.get_cluster(self.project, self.region, 
+      return self.dataproc_client.get_cluster(self.project, self.region,
                                               clustername)
     except exceptions.NotFound:
       return None
@@ -572,18 +572,18 @@ class DataprocSpawner(Spawner):
     return self.user.name if raw else re.sub(r'[^a-zA-Z0-9=]', '-', str(self.user.name))
 
   def clustername(self, cluster_name=None):
-    """ JupyterHub provides a notebook per user, so the username is used to 
+    """ JupyterHub provides a notebook per user, so the username is used to
     distinguish between clusters. """
     if cluster_name is None:
       return f'dataprochub-{self.get_username()}'
     return cluster_name
-  
+
   def calculate_config_value(self, key, path, default):
     """ Checks if a key exists at a dictionary path and returns a default value
     if not. Otherwise, returns the value there.
     key:  ie 'zone_uri'
     path: ie cluster_data['config']['gce_cluster_config']
-    default: 
+    default:
     """
     if key not in path:
       return '<TODO JUPYTERHUB ONE>'
@@ -606,12 +606,12 @@ class DataprocSpawner(Spawner):
     if not folder.endswith("/"):
         folder += "/"
     return bucket, folder
-  
+
   def convert_string_to_duration(self, data):
     """ A cluster export exports times as string using the JSON API but creating
-    but a cluster uses Duration protobuf. This function checks if the fields 
-    known to be affected by this behavior are present in the cluster config. 
-    If so, it changes their value from string to a Duration in YAML. Duration 
+    but a cluster uses Duration protobuf. This function checks if the fields
+    known to be affected by this behavior are present in the cluster config.
+    If so, it changes their value from string to a Duration in YAML. Duration
     looks like {'seconds': 15, 'nanos': 0}. """
     self.log.info('Converting durations for {data}')
 
@@ -631,7 +631,7 @@ class DataprocSpawner(Spawner):
           return int(time_span)
       return united
 
-    # Loops through initialization actions list and replace values that have 
+    # Loops through initialization actions list and replace values that have
     if data['config'].setdefault("initialization_actions", []):
       idx = 0
       for init_action in data['config']['initialization_actions']:
@@ -657,11 +657,11 @@ class DataprocSpawner(Spawner):
         'seconds': to_sec(data['config']['lifecycle_config']['auto_delete_ttl']),
         'nanos': 0
       }
-    
+
     self.log.info('Converted durations are in {data}')
 
     return data.copy()
-  
+
   def _check_uri_geo(self, uri, uri_geo_slice, expected_geo, trim_zone=False):
     uri_geo = None
     uri_data = uri.split('/')
@@ -709,6 +709,9 @@ class DataprocSpawner(Spawner):
     # Unrecognized minor version, fail open
     return True
 
+  # Convert list of user defined labels to dictionary.
+  def list_to_dict(rlist):
+      return dict(map(lambda s : s.split(':'), rlist))
 
 ################################################################################
 # Cluster configuration
@@ -809,6 +812,11 @@ class DataprocSpawner(Spawner):
       except:
         pass
 
+    if self.user_options.get('custom_labels'):
+      cluster_data.setdefault('labels', {})
+      for key, val in list_to_dict(self.user_options.get('custom_labels').split(',')).items():
+        cluster_data['labels'][key] = val
+
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
     if autoscaling_policy:
       cluster_data['config']['autoscaling_config'] = {
@@ -836,7 +844,7 @@ class DataprocSpawner(Spawner):
   def _is_custom_hive_settings(self):
       return self.user_options.get('hive_host') and self.user_options.get('hive_db') \
              and self.user_options.get('hive_user') and self.user_options.get('hive_passwd')
- 
+
   def _build_cluster_config(self, cluster_data=None):
     """ Creates a cluster definition based on different inputs:
     1. Required data to start a dataproc cluster (name and project ID)
@@ -844,14 +852,14 @@ class DataprocSpawner(Spawner):
     3. Admin-provided data through a YAML file (chosen by user or default one.)
     """
     # Default required values that can be overwritten by the YAML file content
-    # but must be set in case there is no form. 
+    # but must be set in case there is no form.
     cluster_data = cluster_data or {}
     cluster_zone = self.zone
 
     # Sets the cluster definition with form data.
     if self.user_options:
       metadata = {}
-    
+
       # Reads values chosen by the user in the form and overwrites any existing
       # ones if relevant.
       gcs_config_file = self.user_options['cluster_type']
@@ -907,30 +915,39 @@ class DataprocSpawner(Spawner):
               init_actions + cluster_data['config']['initialization_actions']
       )
 
+      if 'labels' in cluster_data:
+        for key in list(cluster_data['labels']):
+          cluster_data['labels'][key] = cluster_data['labels'][key]
+      else:
+        cluster_data.setdefault('labels', {})
+
       if self.allow_custom_clusters and self.user_options.get('custom_cluster'):
         cluster_data = self._apply_users_configs(cluster_data)
 
       # Apply label to tag which host environment this cluster was spawned from
-      cluster_data.setdefault('labels', {})
       cluster_data['labels']['goog-dataproc-notebook-spawner'] = (
-          self.spawner_host_type.lower() if self.spawner_host_type != "" else "unknown"
+        self.spawner_host_type.lower() if self.spawner_host_type != "" else "unknown"
       )
-    
+
+
+
+
+
     # Always override project id and name
     cluster_data["project_id"] = self.project
     cluster_data["cluster_name"] = self.clustername()
     cluster_data.setdefault("config", {})
-    
+
     # Sets the zone. Which one overwrites is decided in the form logic.
     cluster_data['config'].setdefault('gce_cluster_config', {})
     cluster_data['config']['gce_cluster_config']['zone_uri'] = (
         f'''https://www.googleapis.com/compute/v1/projects/{self.project}/'''
         f'''zones/{cluster_zone}''')
-    
+
     # Overwrites some existing data with required values.
     cluster_data['config'].setdefault('software_config', {})
     cluster_data['config']['software_config'].setdefault('properties', {})
-    
+
     (cluster_data['config']['software_config']['properties']
     ['dataproc:jupyter.hub.args']) = self.args_str
     (cluster_data['config']['software_config']['properties']
@@ -940,7 +957,7 @@ class DataprocSpawner(Spawner):
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
       ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
-    
+
     if 'image_version' not in cluster_data['config']['software_config']:
       cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 

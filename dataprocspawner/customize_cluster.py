@@ -18,7 +18,7 @@ def get_base_cluster_html_form(configs, locations_list, jupyterhub_region):
   """
   Args:
     - List configs: List of Cloud Dataproc cluster config files path in GCS.
-    - List locations_list: List of zones letters to choose from to create a 
+    - List locations_list: List of zones letters to choose from to create a
       Cloud Dataproc cluster in the JupyterHub region. ex: ["a", "b"]
   """
   locations_list = [i for i in locations_list if i]
@@ -87,28 +87,28 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_pip_packages = """<div class="form-group">
         <label for="pip_packages">Install the following pip packages</label>
-        <input name="pip_packages" class="form-control" placeholder="Example: 'pandas==0.23.0 scipy==1.1.0'" 
+        <input name="pip_packages" class="form-control" placeholder="Example: 'pandas==0.23.0 scipy==1.1.0'"
               value=""></input>
     </div>"""
 
   '''
-  # UI for scala and java packages 
+  # UI for scala and java packages
   html_java_packages = """<div class="form-group">
         <label for="java_packages">Install the following java packages</label>
-        <input name="java_packages" class="form-control" placeholder="" 
+        <input name="java_packages" class="form-control" placeholder=""
               value=""></input>
     </div>"""
 
   html_scala_packages = """<div class="form-group">
         <label for="scala_packages">Install the following scala packages</label>
-        <input name="scala_packages" class="form-control" placeholder="Example: '" 
+        <input name="scala_packages" class="form-control" placeholder="Example: '"
               value=""></input>
     </div>"""
   '''
 
   html_condo_packages = """<div class="form-group">
       <label for="condo_packages">Install the following condo packages</label>
-      <input name="condo_packages" class="form-control" placeholder="Example: 'scipy=1.1.0 tensorflow'" 
+      <input name="condo_packages" class="form-control" placeholder="Example: 'scipy=1.1.0 tensorflow'"
             value=""></input>
   </div>"""
 
@@ -124,7 +124,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_master_disc = """<div class="form-group">
       <label for="master_node_disc_size">Master disk size</label>
-      <input name="master_node_disc_size" class="form-control" placeholder="default" 
+      <input name="master_node_disc_size" class="form-control" placeholder="default"
             value=""></input>
   </div>"""
 
@@ -140,13 +140,19 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_worker_disc = """<div class="form-group">
       <label for="worker_node_disc_size">Worker disc size</label>
-      <input name="worker_node_disc_size" class="form-control" placeholder="default" 
+      <input name="worker_node_disc_size" class="form-control" placeholder="default"
             value=""></input>
   </div>"""
 
   html_worker_amount = """<div class="form-group">
       <label for="worker_node_amount">Amount of workers</label>
       <input name="worker_node_amount" class="form-control" placeholder="default" 
+            value=""></input>
+  </div>"""
+
+  html_custom_labels = """<div class="form-group">
+      <label for="custom_labels">User defined labels</label>
+      <input name="custom_labels" class="form-control" placeholder="key1:value1,key2:value2"
             value=""></input>
   </div>"""
 
@@ -173,6 +179,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_worker_type,
     html_worker_disc,
     html_worker_amount,
+    html_custom_labels,
     html_hive_settings
   ])
 
