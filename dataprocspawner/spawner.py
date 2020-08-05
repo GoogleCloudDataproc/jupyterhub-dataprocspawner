@@ -710,7 +710,7 @@ class DataprocSpawner(Spawner):
     return True
 
   # Convert list of user defined labels to dictionary.
-  def list_to_dict(rlist):
+  def list_to_dict(self, rlist):
       return dict(map(lambda s : s.split(':'), rlist))
 
 ################################################################################
@@ -813,8 +813,10 @@ class DataprocSpawner(Spawner):
         pass
 
     if self.user_options.get('custom_labels'):
+      if 'labels' in cluster_data:
+        del cluster_data['labels']
       cluster_data.setdefault('labels', {})
-      for key, val in list_to_dict(self.user_options.get('custom_labels').split(',')).items():
+      for key, val in self.list_to_dict(self.user_options.get('custom_labels').split(',')).items():
         cluster_data['labels'][key] = val
 
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
