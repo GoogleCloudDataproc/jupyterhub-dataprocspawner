@@ -217,7 +217,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -256,23 +256,24 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
-    
-    def test_clustername(*args, **kwargs):
-      return 'test-clustername'
+
+    def test_username(*args, **kwargs):
+      return 'foo-user'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
-    monkeypatch.setattr(spawner, "clustername", test_clustername)
+    monkeypatch.setattr(spawner, "get_username", test_username)
 
     spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
+    spawner.cluster_name_pattern = 'my-cluster-{}'
     spawner.user_options = {
       'cluster_type': 'basic.yaml',
       'cluster_zone': 'test-form1-a'
@@ -280,9 +281,8 @@ class TestDataprocSpawner:
 
     config_built = spawner._build_cluster_config()
 
+    assert config_built['cluster_name'] == 'my-cluster-foo-user'
     assert config_built['project_id'] == 'test-project'
-    assert config_built['cluster_name'] == 'test-clustername'
-
   
   def test_cluster_definition_keep_core_values(self, monkeypatch):
     """ Some system's default values must remain no matter what. """
@@ -296,7 +296,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -335,7 +335,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -375,7 +375,7 @@ class TestDataprocSpawner:
       return config_string
     
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -406,7 +406,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -482,7 +482,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -517,7 +517,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -557,7 +557,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -608,7 +608,7 @@ class TestDataprocSpawner:
       return 'test-clustername'
 
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     # Prevents a call to GCS. We return the local file instead.
@@ -638,7 +638,7 @@ class TestDataprocSpawner:
 
   def test_image_version_supports_component_gateway(self, monkeypatch):
     mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     assert spawner._validate_image_version_supports_component_gateway('1.3') is True
