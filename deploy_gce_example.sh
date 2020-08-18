@@ -4,8 +4,7 @@
 
 PROJECT_ID=$1
 VM_NAME=$2
-DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce"
-
+DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce4"
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
