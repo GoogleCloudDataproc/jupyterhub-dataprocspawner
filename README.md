@@ -45,7 +45,7 @@ The quickest way to try it out is to use a test Compute Engine instance. The fol
 
     ```bash
     git clone https://github.com/GoogleCloudPlatform/dataprocspawner
-    cd dataprocspawner && pip install .
+    cd dataprocspawner
     ```
 
 1. Run the example script which:

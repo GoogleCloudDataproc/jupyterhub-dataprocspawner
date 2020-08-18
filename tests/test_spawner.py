@@ -18,8 +18,9 @@ Unit tests for methods within DataprocSpawner (start, stop, and poll).
 """
 from collections import namedtuple
 from dataprocspawner import DataprocSpawner
-from google.cloud import dataproc_v1beta2
-from google.cloud.dataproc_v1beta2.proto import clusters_pb2
+from google.cloud.dataproc import ClusterControllerClient
+from google.cloud.dataproc import Cluster
+from google.cloud.dataproc import ClusterStatus
 from google.longrunning import operations_pb2
 from google.cloud import storage
 from jupyterhub.objects import Hub, Server
@@ -51,7 +52,7 @@ class TestDataprocSpawner:
     operation = operations_pb2.Operation()
 
     # Mock the Dataproc API client
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
     mock_client.create_cluster.return_value = operation
 
     # Force no existing clusters to bypass the check in the spawner
@@ -80,7 +81,7 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_start_existing_clustername(self):
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -96,7 +97,7 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_stop_normal(self):
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -106,12 +107,15 @@ class TestDataprocSpawner:
 
     response = await spawner.stop()
 
-    mock_client.delete_cluster.assert_called_once_with("test-stop", self.region, 'dataprochub-fake')
+    mock_client.delete_cluster.assert_called_once_with(
+        project_id="test-stop", 
+        region=self.region, 
+        cluster_name='dataprochub-fake')
 
   @pytest.mark.asyncio
   async def test_stop_no_cluster(self):
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
     mock_client.get_cluster.return_value = None
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -128,12 +132,12 @@ class TestDataprocSpawner:
 
     expected_response = {
       "status": {
-          "state": "RUNNING"
+          "state": ClusterStatus.State.RUNNING
       }
     }
-    expected_response = clusters_pb2.Cluster(**expected_response)
+    expected_response = Cluster(**expected_response)
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
     mock_client.get_cluster.return_value = expected_response
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -148,12 +152,12 @@ class TestDataprocSpawner:
 
     expected_response = {
       "status": {
-          "state": "CREATING"
+          "state": ClusterStatus.State.CREATING
       }
     }
-    expected_response = clusters_pb2.Cluster(**expected_response)
+    expected_response = Cluster(**expected_response)
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
     mock_client.get_cluster.return_value = expected_response
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -166,7 +170,7 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_poll_no_cluster(self):
 
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
     mock_client.get_cluster.return_value = None
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -178,7 +182,7 @@ class TestDataprocSpawner:
 
   @pytest.mark.asyncio
   async def test_normal_zonal_dns(self):
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -191,7 +195,7 @@ class TestDataprocSpawner:
 
   @pytest.mark.asyncio
   async def test_domain_scoped_zonal_dns(self):
-    mock_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_client = mock.create_autospec(ClusterControllerClient())
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -216,7 +220,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
@@ -260,7 +264,7 @@ class TestDataprocSpawner:
     def test_username(*args, **kwargs):
       return 'foo-user'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
@@ -295,7 +299,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
@@ -334,7 +338,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
@@ -374,7 +378,7 @@ class TestDataprocSpawner:
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
     
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
@@ -405,7 +409,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
@@ -481,7 +485,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
@@ -516,7 +520,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
@@ -556,7 +560,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
@@ -607,7 +611,7 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -637,7 +641,7 @@ class TestDataprocSpawner:
     assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
 
   def test_image_version_supports_component_gateway(self, monkeypatch):
-    mock_dataproc_client = mock.create_autospec(dataproc_v1beta2.ClusterControllerClient())
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
     mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 

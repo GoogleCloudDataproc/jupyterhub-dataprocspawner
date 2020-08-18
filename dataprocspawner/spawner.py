@@ -21,13 +21,10 @@ import random
 import yaml
 from jupyterhub.spawner import Spawner
 from google.api_core import exceptions
-from google.cloud import dataproc_v1beta2
-from google.cloud.dataproc_v1beta2.gapic.transports import (
-    cluster_controller_grpc_transport)
-from google.cloud.dataproc_v1beta2.gapic.transports import (
-    job_controller_grpc_transport)
-from google.cloud.dataproc_v1beta2.gapic.enums import ClusterStatus
 from google.cloud import storage
+from google.cloud.dataproc import ClusterControllerClient
+from google.cloud.dataproc import ClusterStatus
+from google.cloud.dataproc_v1.services.cluster_controller.transports import ClusterControllerGrpcTransport
 from traitlets import List, Unicode, Tuple, Dict, Bool
 from google.protobuf.internal.well_known_types import Duration
 
@@ -236,9 +233,9 @@ class DataprocSpawner(Spawner):
       self.gcs_client = kwargs.get('gcs')
     else:
       self.client_transport = (
-        cluster_controller_grpc_transport.ClusterControllerGrpcTransport(
+        ClusterControllerGrpcTransport(
             address=f'{self.region}-dataproc.googleapis.com:443'))
-      self.dataproc_client = dataproc_v1beta2.ClusterControllerClient(
+      self.dataproc_client = ClusterControllerClient(
           self.client_transport)
       self.gcs_client = storage.Client(project=self.project)
 
@@ -518,7 +515,10 @@ class DataprocSpawner(Spawner):
     """ Method implements custom retry functionality in order to change zone before each recall """
     while True:
       try:
-        return self.dataproc_client.create_cluster(self.project, self.region, cluster_data)
+        return self.dataproc_client.create_cluster(
+            project_id=self.project, 
+            region=self.region, 
+            cluster=cluster_data)
       except (exceptions.PermissionDenied, exceptions.TooManyRequests, exceptions.ResourceExhausted) as e:
 
         if await self.get_cluster_status(self.clustername()) == ClusterStatus.State.DELETING:
@@ -567,8 +567,10 @@ class DataprocSpawner(Spawner):
 
   async def get_cluster(self, clustername):
     try:
-      return self.dataproc_client.get_cluster(self.project, self.region, 
-                                              clustername)
+      return self.dataproc_client.get_cluster(
+        project_id=self.project,
+        region=self.region,
+        cluster_name=clustername)
     except exceptions.NotFound:
       return None
 
