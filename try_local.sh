@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Usage: bash deploy_gce_example.sh <PROJECT_ID> <VM_NAME>
+# Usage: ./try_local.sh PROJECT_ID
 
-PROJECT_ID=$1
-VM_NAME=$2
-DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce4"
+echo "This script only tests the deployment of JupyterHub but can not spawn a cluster."
+
+PROJECT=$1
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
@@ -60,20 +59,20 @@ c.JupyterHub.hub_ip = '0.0.0.0'
 c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
 EOT
 
+mkdir -p /tmp/keys
+cp ~/.config/gcloud/application_default_credentials.json /tmp/keys
 
-gcloud builds submit -t  ${DOCKER_IMAGE} .
+GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 
-gcloud beta compute instances create-with-container ${VM_NAME} \
-  --project ${PROJECT_ID} \
-  --container-image=${DOCKER_IMAGE} \
-  --container-arg="--DataprocSpawner.project=${PROJECT_ID}" \
-  --scopes=cloud-platform \
-  --zone us-central1-a
-
-gcloud compute instances describe ${VM_NAME} \
-  --project ${PROJECT_ID} \
-  --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
+docker build -t ain .
 
 # Clean up
 rm Dockerfile
 rm jupyterhub_config.py
+
+docker run -it \
+-p 8000:8000 \
+-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json  \
+-v $GOOGLE_APPLICATION_CREDENTIALS:/tmp/keys/application_default_credentials.json:ro \
+-e GOOGLE_CLOUD_PROJECT=${PROJECT} \
+ain:latest

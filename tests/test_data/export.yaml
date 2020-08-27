@@ -41,10 +41,10 @@ config:
   softwareConfig:
     imageVersion: 1.4.27-debian10
     optionalComponents:
-    - JUPYTER
-    - ZEPPELIN
-    - ANACONDA
-    - PRESTO
+    - 1
+    - 4
+    - 5
+    - 6
     properties:
       capacity-scheduler:yarn.scheduler.capacity.root.default.ordering-policy: fair
       core:fs.gs.block.size: '134217728'
