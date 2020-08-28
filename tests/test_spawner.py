@@ -244,8 +244,8 @@ class TestDataprocSpawner:
     
     assert config_built['config']['gce_cluster_config']['zone_uri'].split('/')[-1] == 'test-self1-b'
 
-    assert Component.ANACONDA in config_built['config']['software_config']['optional_components']
-    assert Component.JUPYTER in config_built['config']['software_config']['optional_components']
+    assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
+    assert Component['ANACONDA'].value in config_built['config']['software_config']['optional_components']
 
     assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
@@ -460,7 +460,9 @@ class TestDataprocSpawner:
         'worker_config': {},
         'software_config': {
           'image_version': '1.4-debian9',
-          'optional_components': [Component.JUPYTER, Component.ANACONDA],
+          'optional_components': [
+              Component.JUPYTER.value,
+              Component.ANACONDA.value],
           'properties': {
             'dataproc:jupyter.hub.args': 'test-args-str',
             'dataproc:jupyter.hub.enabled': 'true',
