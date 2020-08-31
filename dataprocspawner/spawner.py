@@ -22,10 +22,10 @@ import yaml
 from jupyterhub.spawner import Spawner
 from google.api_core import exceptions
 from google.cloud import storage
-from google.cloud.dataproc import ClusterControllerClient
-from google.cloud.dataproc import ClusterStatus
-from google.cloud.dataproc_v1.services.cluster_controller.transports import ClusterControllerGrpcTransport
-from google.cloud.dataproc_v1.types.shared import Component
+from google.cloud.dataproc_v1beta2 import ClusterControllerClient
+from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
+from google.cloud.dataproc_v1beta2.types.shared import Component
 from traitlets import List, Unicode, Tuple, Dict, Bool
 from google.protobuf.internal.well_known_types import Duration
 

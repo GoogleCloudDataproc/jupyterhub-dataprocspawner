@@ -18,10 +18,10 @@ Unit tests for methods within DataprocSpawner (start, stop, and poll).
 """
 from collections import namedtuple
 from dataprocspawner import DataprocSpawner
-from google.cloud.dataproc import ClusterControllerClient
-from google.cloud.dataproc import Cluster
-from google.cloud.dataproc import ClusterStatus
-from google.cloud.dataproc_v1.types.shared import Component
+from google.cloud.dataproc_v1beta2 import ClusterControllerClient
+from google.cloud.dataproc_v1beta2 import Cluster
+from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.longrunning import operations_pb2
 from google.cloud import storage
 from jupyterhub.objects import Hub, Server

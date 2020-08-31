@@ -61,7 +61,7 @@ c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
 EOT
 
 
-gcloud builds submit -t  ${DOCKER_IMAGE} .
+gcloud --project ${PROJECT_ID} builds submit -t  ${DOCKER_IMAGE} .
 
 gcloud beta compute instances create-with-container ${VM_NAME} \
   --project ${PROJECT_ID} \
