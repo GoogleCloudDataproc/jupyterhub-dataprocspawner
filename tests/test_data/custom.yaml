@@ -17,8 +17,8 @@ config:
       minCpuPlatform: AUTOMATIC
   softwareConfig:
     optionalComponents:
-    - JUPYTER
-    - ANACONDA
+    - 1
+    - 5
     properties:
       key-with-dash:UPPER_UPPER: '4000'
       key-with-dash-too:UlowUlowUlow: 85196m

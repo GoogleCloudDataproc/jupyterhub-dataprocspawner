@@ -22,9 +22,10 @@ import yaml
 from jupyterhub.spawner import Spawner
 from google.api_core import exceptions
 from google.cloud import storage
-from google.cloud.dataproc import ClusterControllerClient
-from google.cloud.dataproc import ClusterStatus
-from google.cloud.dataproc_v1.services.cluster_controller.transports import ClusterControllerGrpcTransport
+from google.cloud.dataproc_v1beta2 import ClusterControllerClient
+from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
+from google.cloud.dataproc_v1beta2.types.shared import Component
 from traitlets import List, Unicode, Tuple, Dict, Bool
 from google.protobuf.internal.well_known_types import Duration
 
@@ -234,9 +235,9 @@ class DataprocSpawner(Spawner):
     else:
       self.client_transport = (
         ClusterControllerGrpcTransport(
-            address=f'{self.region}-dataproc.googleapis.com:443'))
+            host=f'{self.region}-dataproc.googleapis.com:443'))
       self.dataproc_client = ClusterControllerClient(
-          self.client_transport)
+          client_options={"api_endpoint":f'{self.region}-dataproc.googleapis.com:443'})
       self.gcs_client = storage.Client(project=self.project)
 
     if self.gcs_notebooks:
@@ -961,13 +962,21 @@ class DataprocSpawner(Spawner):
           cluster_data['config']['software_config']['image_version']):
         cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
 
+    cluster_data['config']['software_config'].setdefault('optional_components', [])
+    
+    # Converts component's string to its int value (See Component protobuf in
+    # google-cloud-dataproc library). This allows to pass strings in yaml.
+    optional_components = [Component[c].value if isinstance(c, str) else c for
+        c in cluster_data['config']['software_config']['optional_components']]
+      
     if self.force_add_jupyter_component:
-      cluster_data['config']['software_config'].setdefault('optional_components', [])
-      optional_components = cluster_data['config']['software_config']['optional_components']
-      if 'JUPYTER' not in optional_components:
-        optional_components.append('JUPYTER')
-      if 'ANACONDA' not in optional_components:
-        optional_components.append('ANACONDA')
+      if Component['JUPYTER'].value not in optional_components:
+        optional_components.append(Component['JUPYTER'].value)
+      if Component['ANACONDA'].value not in optional_components:
+        optional_components.append(Component['ANACONDA'].value)
+      
+    (cluster_data['config']['software_config']
+    ['optional_components']) = optional_components
 
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})
     cluster_data = self.convert_string_to_duration(cluster_data.copy())
