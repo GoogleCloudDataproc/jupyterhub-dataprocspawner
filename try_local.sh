@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Usage: ./try_local.sh PROJECT_ID
 
 echo "This script only tests the deployment of JupyterHub but can not spawn a cluster."
+echo "Usage: ./try_local.sh PROJECT_ID CONFIGS_LOCATION."
 
 PROJECT=$1
+CONFIGS_LOCATION=$2
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
@@ -57,6 +57,9 @@ import socket
 c.JupyterHub.hub_ip = '0.0.0.0'
 # The IP address that other services should use to connect to the hub
 c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
+
+c.DataprocSpawner.dataproc_configs = ""
+c.DataprocSpawner.dataproc_configs_location = "${CONFIGS_LOCATION}"
 EOT
 
 mkdir -p /tmp/keys
