@@ -60,7 +60,7 @@ c.JupyterHub.hub_ip = '0.0.0.0'
 # The IP address that other services should use to connect to the hub
 c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
 
-c.DataprocSpawner.dataproc_configs_location = "${CONFIGS_LOCATION}"
+c.DataprocSpawner.dataproc_configs = "${CONFIGS_LOCATION}"
 c.DataprocSpawner.dataproc_locations_list = "b,c"
 EOT
 

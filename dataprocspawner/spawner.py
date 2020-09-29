@@ -116,22 +116,18 @@ class DataprocSpawner(Spawner):
   dataproc_configs = Unicode(
       config=True,
       help=""" 
-      Comma separated list of the dataproc configurations available in the user 
-      spawning form. Each value should contain the top bucket name (can be 
+      Can represent two things:
+      1. Comma separated list of the dataproc configurations available in the 
+      user spawning form. Each value should contain the top bucket name (can be 
       without gs://) and path to the files from that bucket name. Currently 
       supports only .yaml file.
       
       Example 1 config file: 'bucket/configs/file.yaml' or the same value 'gs://bucket/configs/file.yaml'
       Example 2 config files: 'bucket/configs/file1.yaml,bucket/configs/file2.yaml
-      """,)
-  
-  dataproc_configs_location = Unicode(
-      config=True,
-      help=""" 
-      Reference to a Cloud Storage location that contains all the Dataproc configs
-      to use with this Hub instance. The string can start with gs:// or not, can
-      refer to a bucket or subfolder and can have a trailing / or not. Currently
-      supports only .yaml files.
+
+      2. Reference to a Cloud Storage location that contains all the Dataproc 
+      configs to use with this Hub instance. The string can start with gs:// or 
+      not, can refer to a bucket or subfolder and can have a trailing / or not. 
       """,)
   
   dataproc_default_subnet = Unicode(
@@ -315,18 +311,22 @@ class DataprocSpawner(Spawner):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
     """
-    # Priority for Dataproc yaml configurations goes 
-    # 1. List of files in GCS (legacy)
-    # 2. GCS bucket or subfolder location
-    # 3. If both are empty, the system skips the form and choose a default one.
     config_files = ""
-    if self.dataproc_configs_location:
-      config_files = ",".join(self._list_gcs_files(
-          self.dataproc_configs_location,
-          extension=".yaml"))
-    if self.dataproc_configs:
+    file_extension = ".yaml"
+    
+    if self.dataproc_configs.endswith(file_extension):
+      # This is a comma separated list of yaml files or just one config file.
+      self.log.info('Config is a file or list of files.')
       config_files = self.dataproc_configs
-    if not config_files:
+    elif self.dataproc_configs:
+      # If the string is not null and not a list of files, it should be a bucket
+      # or subfolder path. If otheriwse, _list_gcs_files will return an error.
+      self.log.info('Config is a GCS bucket/subfolder.')
+      config_files = ",".join(
+          self._list_gcs_files(self.dataproc_configs, extension=file_extension))
+    else:
+      # String is empty, skips the form page and spawns directly.
+      self.log.info('Config is empty.')
       return ""
 
     base_html = get_base_cluster_html_form(
