@@ -18,6 +18,7 @@ Unit tests for methods within DataprocSpawner (start, stop, and poll).
 """
 from collections import namedtuple
 from dataprocspawner import DataprocSpawner
+from google.auth.credentials import AnonymousCredentials
 from google.cloud.dataproc_v1beta2 import ClusterControllerClient
 from google.cloud.dataproc_v1beta2 import Cluster
 from google.cloud.dataproc_v1beta2 import ClusterStatus
@@ -54,7 +55,8 @@ class TestDataprocSpawner:
     operation = operations_pb2.Operation()
 
     # Mock the Dataproc API client
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.create_cluster.return_value = operation
 
     # Force no existing clusters to bypass the check in the spawner
@@ -83,7 +85,8 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_start_existing_clustername(self):
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -99,7 +102,8 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_stop_normal(self):
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -110,14 +114,15 @@ class TestDataprocSpawner:
     response = await spawner.stop()
 
     mock_client.delete_cluster.assert_called_once_with(
-        project_id="test-stop", 
-        region=self.region, 
+        project_id="test-stop",
+        region=self.region,
         cluster_name='dataprochub-fake')
 
   @pytest.mark.asyncio
   async def test_stop_no_cluster(self):
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -139,7 +144,8 @@ class TestDataprocSpawner:
     }
     expected_response = Cluster(**expected_response)
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = expected_response
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -159,7 +165,8 @@ class TestDataprocSpawner:
     }
     expected_response = Cluster(**expected_response)
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = expected_response
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -172,7 +179,8 @@ class TestDataprocSpawner:
   @pytest.mark.asyncio
   async def test_poll_no_cluster(self):
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
@@ -184,7 +192,8 @@ class TestDataprocSpawner:
 
   @pytest.mark.asyncio
   async def test_normal_zonal_dns(self):
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -197,7 +206,8 @@ class TestDataprocSpawner:
 
   @pytest.mark.asyncio
   async def test_domain_scoped_zonal_dns(self):
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
@@ -214,7 +224,8 @@ class TestDataprocSpawner:
   def test_clean_gcs_path(self, monkeypatch):
     path = "gs://bucket/config/"
 
-    mock_client = mock.create_autospec(ClusterControllerClient())
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     assert spawner._clean_gcs_path(path) == "gs://bucket/config"
@@ -254,8 +265,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -285,8 +297,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -329,8 +342,9 @@ class TestDataprocSpawner:
     def test_username(*args, **kwargs):
       return 'foo-user'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -364,8 +378,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -403,8 +418,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -443,8 +459,9 @@ class TestDataprocSpawner:
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
     
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
        
     # Prevents a call to GCS. We return the local file instead.
@@ -474,8 +491,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -552,8 +570,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -587,8 +606,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -627,8 +647,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
         
     # Prevents a call to GCS. We return the local file instead.
@@ -678,8 +699,9 @@ class TestDataprocSpawner:
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     # Prevents a call to GCS. We return the local file instead.
@@ -708,8 +730,9 @@ class TestDataprocSpawner:
     assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
 
   def test_image_version_supports_component_gateway(self, monkeypatch):
-    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
-    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     assert spawner._validate_image_version_supports_component_gateway('1.3') is True

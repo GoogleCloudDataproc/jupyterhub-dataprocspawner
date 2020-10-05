@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A custom Spawner that creates notebooks backed by Dataproc clusters."""
 
 from dataprocspawner.spawner import DataprocSpawner
 
 __all__ = ['DataprocSpawner']
+

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
+"""Functions for creating form to customize cluster configuration."""
+
 
 def get_base_cluster_html_form(configs, locations_list, jupyterhub_region):
   """
@@ -24,27 +25,27 @@ def get_base_cluster_html_form(configs, locations_list, jupyterhub_region):
   locations_list = [i for i in locations_list if i]
   configs = [i for i in configs if i]
 
-  html_config = f'''
+  html_config = '''
   <section class="form-section">
-  <div class="form-group">
-  <label for="cluster_type">Cluster's configuration</label>
+  <div class="form-group"> <label for="cluster_type">Cluster's configuration</label>
   <select class="form-control" name="cluster_type">\n'''
   for config in configs:
-    name = '.'.join(config.split('/')[-1].split('.')[:-1])
+    name = ".".join(config.split("/")[-1].split(".")[:-1])
     html_config += f'''\t<option value="{config}">{name}</option>\n'''
-  html_config += f'''</select></div>'''
+  html_config += '''</select></div>'''
 
-  html_zone = f'''<div class="form-group">
+  html_zone = '''<div class="form-group">
   <label for="cluster_zone">Zone</label>
   <select class="form-control" name="cluster_zone">\n'''
 
   html_zone_options = []
   for zone_letter in locations_list:
-    location = f'{jupyterhub_region}-{zone_letter}'
-    html_zone_options.append(f'''\t<option value="{location}">{location}</option>\n''')
+    location = f"{jupyterhub_region}-{zone_letter}"
+    html_zone_options.append(
+        f'''\t<option value="{location}">{location}</option>\n''')
 
   html_zone += "".join(html_zone_options)
-  html_zone += f'''</select></div></section>'''
+  html_zone += '''</select></div></section>'''
 
   return html_config + "\n" + html_zone
 
@@ -91,21 +92,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
               value=""></input>
     </div>"""
 
-  '''
-  # UI for scala and java packages
-  html_java_packages = """<div class="form-group">
-        <label for="java_packages">Install the following java packages</label>
-        <input name="java_packages" class="form-control" placeholder=""
-              value=""></input>
-    </div>"""
-
-  html_scala_packages = """<div class="form-group">
-        <label for="scala_packages">Install the following scala packages</label>
-        <input name="scala_packages" class="form-control" placeholder="Example: '"
-              value=""></input>
-    </div>"""
-  '''
-
   html_condo_packages = """<div class="form-group">
       <label for="condo_packages">Install the following condo packages</label>
       <input name="condo_packages" class="form-control" placeholder="Example: 'scipy=1.1.0 tensorflow'"
@@ -117,7 +103,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_master_type += """<div class="form-group">
         <label for="master_node_type">Master machine type</label>
         <select class="form-control" name="master_node_type">"""
-    html_master_type += f'''<option value="">Default</option>'''
+    html_master_type += '''<option value="">Default</option>'''
     for t in node_types:
       html_master_type += f'''<option value="{t}">{t}</option>'''
     html_master_type += "</select></div>"
@@ -133,7 +119,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_worker_type += """<div class="form-group">
         <label for="worker_node_type">Workers machine type</label>
         <select class="form-control" name="worker_node_type">"""
-    html_worker_type += f'''<option value="">Default</option>'''
+    html_worker_type += '''<option value="">Default</option>'''
     for t in node_types:
       html_worker_type += f'''<option value="{t}">{t}</option>'''
     html_worker_type += "</select></div>"
@@ -171,16 +157,16 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
   </div>"""
 
   body = "\n".join([
-    html_autoscaling_policy,
-    html_pip_packages,
-    html_condo_packages,
-    html_master_type,
-    html_master_disc,
-    html_worker_type,
-    html_worker_disc,
-    html_worker_amount,
-    html_custom_labels,
-    html_hive_settings
+      html_autoscaling_policy,
+      html_pip_packages,
+      html_condo_packages,
+      html_master_type,
+      html_master_disc,
+      html_worker_type,
+      html_worker_disc,
+      html_worker_amount,
+      html_custom_labels,
+      html_hive_settings
   ])
 
   return head_html + js_code + body + bottom_html

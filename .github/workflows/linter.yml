@@ -1,0 +1,43 @@
+---
+###########################
+## Linter GitHub Actions ##
+###########################
+name: Lint
+
+# Documentation:
+# https://help.github.com/en/articles/workflow-syntax-for-github-actions
+
+# Start the job on any push
+on:
+  push:
+    branches-ignore: [master]
+  pull_request:
+    branches: [master]
+
+###############
+# Set the Job #
+###############
+jobs:
+  build:
+    name: Lint
+    runs-on: ubuntu-18.04
+
+    steps:
+      # Checkout the code base
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # Run Linter against code base
+      - name: Lint Code Base
+        uses: github/super-linter@v3
+        env:
+          # Only run against changed files
+          VALIDATE_ALL_CODEBASE: false
+          # Don't lint tests
+          FILTER_REGEX_EXCLUDE: tests/.*
+          DEFAULT_BRANCH: master
+          LINTER_RULES_PATH: .
+          VALIDATE_PYTHON_FLAKE8: false
+          VALIDATE_PYTHON_BLACK: false
+          PYTHON_PYLINT_CONFIG_FILE: .pylintrc
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
