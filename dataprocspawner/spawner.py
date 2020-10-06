@@ -116,18 +116,11 @@ class DataprocSpawner(Spawner):
   dataproc_configs = Unicode(
       config=True,
       help=""" 
-      Can represent two things:
-      1. Comma separated list of the dataproc configurations available in the 
-      user spawning form. Each value should contain the top bucket name (can be 
-      without gs://) and path to the files from that bucket name. Currently 
-      supports only .yaml file.
+      Comma separated list of the dataproc configurations available in the 
+      user spawning form. Each path can be a bucket, subfolder or file and can
+      include the prefix gs:// or not and the suffix / or not.
       
-      Example 1 config file: 'bucket/configs/file.yaml' or the same value 'gs://bucket/configs/file.yaml'
-      Example 2 config files: 'bucket/configs/file1.yaml,bucket/configs/file2.yaml
-
-      2. Reference to a Cloud Storage location that contains all the Dataproc 
-      configs to use with this Hub instance. The string can start with gs:// or 
-      not, can refer to a bucket or subfolder and can have a trailing / or not. 
+      Example: 'bucket/configs/,gs://bucket/configs/file.yaml,gs://bucket'
       """,)
   
   dataproc_default_subnet = Unicode(
