@@ -116,14 +116,18 @@ class DataprocSpawner(Spawner):
   dataproc_configs = Unicode(
       config=True,
       help=""" 
-      Comma separated list of the dataproc configurations available in the user spawning form.
-      Each value should contain the top bucket name (can be without gs://) and path to the files from
-      that bucket name. 
+      Can represent two things:
+      1. Comma separated list of the dataproc configurations available in the 
+      user spawning form. Each value should contain the top bucket name (can be 
+      without gs://) and path to the files from that bucket name. Currently 
+      supports only .yaml file.
       
       Example 1 config file: 'bucket/configs/file.yaml' or the same value 'gs://bucket/configs/file.yaml'
       Example 2 config files: 'bucket/configs/file1.yaml,bucket/configs/file2.yaml
 
-      This must be configured
+      2. Reference to a Cloud Storage location that contains all the Dataproc 
+      configs to use with this Hub instance. The string can start with gs:// or 
+      not, can refer to a bucket or subfolder and can have a trailing / or not. 
       """,)
   
   dataproc_default_subnet = Unicode(
@@ -302,18 +306,13 @@ class DataprocSpawner(Spawner):
 
 ################################################################################
 # User form functions
-################################################################################
+################################################################################ 
   def _options_form_default(self):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
     """
-    
-    # Skips the form if no config provided.
-    if not self.dataproc_configs:
-      return ""
-
     base_html = get_base_cluster_html_form(
-      self.dataproc_configs.split(','),
+      self._list_gcs_files(self.dataproc_configs),
       self.dataproc_locations_list.split(','),
       self.region
     )
@@ -330,10 +329,39 @@ class DataprocSpawner(Spawner):
       html_customize_cluster
     ])
 
-  def options_from_form(self, formdata):
-    """ 
-    Returns the selected option selected by the user. It sets self.user_options.
+  def _list_gcs_files(self, gcs_paths, return_path=True, sep=","):
+    """ Lists the file names of a GCS bucket or subfolder.
+    Args:
+    - str gcs_files: String that represents a path or a list of paths separated
+      by `sep`. Path can be GCS buckets, subfolders or a list of files. Path can 
+      include gs:// and a trailing /.
+    - str extension: if provided, includes only the files that ends with this
+      string.
     """
+    config_paths = []
+
+    for path in gcs_paths.split(sep):
+      path = self._clean_gcs_path(path, return_gs=False)
+      gcs_bucket = path.split("/")[0]
+      gcs_prefix = "/".join(path.split("/")[1:])
+      try:
+        config_paths += [f'{gcs_bucket}/{b.name}' 
+            for b in self.gcs_client.list_blobs(gcs_bucket, prefix=gcs_prefix)]
+      except exceptions.NotFound:
+        pass
+
+    config_paths = list(set(config_paths))
+    return config_paths if config_paths else ""
+
+  async def get_options_form(self):
+    """ Overwrites default function in order to have a dynamic form which allows
+    the update of dropdowns when the configs GCS location content changes for
+    example. 
+    """
+    return self._options_form_default()
+
+  def options_from_form(self, formdata):
+    """ Returns the selected option selected by the user. """
     self.log.info(f'''formdata is {formdata}''')
 
     options = {}
@@ -415,7 +443,7 @@ class DataprocSpawner(Spawner):
     return sc
 
   def read_gcs_file(self, file_path) -> dict:
-    file_path = file_path.replace('gs://', '').split('/')
+    file_path = file_path.replace('gs://', '').replace('//', '/').split('/')
     bn = file_path[0]
     fp = "/".join(file_path[1:])
     
@@ -618,6 +646,20 @@ class DataprocSpawner(Spawner):
         folder += "/"
     return bucket, folder
   
+  def _clean_gcs_path(self, gcs_path, return_gs=True, return_slash=False):
+    """ Takes a GCS path starting with or without gs:// and returns a consistent
+    value. 
+    Args:
+      - str gcs_path: a GCS path URI that starts with gs:// or not.
+      - bool return_gs: if True returns a string starting with gs://, otherwise
+      returns a GCS path that starts directly with the bucket name. """
+    gcs_starter = 'gs://'
+    if (gcs_path.startswith(gcs_starter)) and (not return_gs):
+      gcs_path = gcs_path[len(gcs_starter):]
+    if (gcs_path.endswith('/')) and (not return_slash):
+      gcs_path = gcs_path[:-1]
+    return gcs_path
+
   def convert_string_to_duration(self, data):
     """ A cluster export exports times as string using the JSON API but creating
     but a cluster uses Duration protobuf. This function checks if the fields 
