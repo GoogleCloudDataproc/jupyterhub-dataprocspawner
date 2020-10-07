@@ -24,6 +24,7 @@ from google.cloud.dataproc_v1beta2 import ClusterStatus
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.longrunning import operations_pb2
 from google.cloud import storage
+from google.cloud.storage.blob import Blob
 from jupyterhub.objects import Hub, Server
 from unittest import mock
 import json
@@ -209,6 +210,69 @@ class TestDataprocSpawner:
 
   # YAML files
   # Tests Dataproc cluster configurations.
+  
+  def test_clean_gcs_path(self, monkeypatch):
+    path = "gs://bucket/config/"
+
+    mock_client = mock.create_autospec(ClusterControllerClient())
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+
+    assert spawner._clean_gcs_path(path) == "gs://bucket/config"
+    assert spawner._clean_gcs_path(path, return_gs=False) == "bucket/config"
+    assert spawner._clean_gcs_path(path, return_slash=True) == "gs://bucket/config/"
+  
+  def test_config_paths(self, monkeypatch):
+    """ Checks that configuration paths are found. """
+
+    config_hierarchy = [
+      "bucket/listme/file_L1.yaml",
+      "bucket/config/file_A1.yaml",
+      "bucket/config/file_A2.yaml",
+      "bucket/file_B1.yaml",
+      "bucket-two/config/two/file_C1.yaml"
+    ]
+
+    expected = config_hierarchy
+
+    def test_list_blobs(*args, **kwargs):
+      """ Rewrites library function to reads a custom list of paths vs real GCS.
+      https://googleapis.dev/python/storage/latest/_modules/google/cloud/storage/client.html#Client.list_blobs
+      """
+      bucket_or_name = args[0]
+      prefix = kwargs['prefix']
+      candidate_path = f'{bucket_or_name}/{prefix}'
+      config_paths = []
+
+      for c in config_hierarchy:
+        if c.startswith(candidate_path):
+          fn = '/'.join(c.split('/')[1:])
+          b = Blob(bucket='dummy', name=fn)
+          config_paths.append(b)
+
+      return iter(config_paths)
+    
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient())
+    mock_gcs_client = mock.create_autospec(storage.Client(project='project'))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+       
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(mock_gcs_client, "list_blobs", test_list_blobs)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    spawner.project = "test-project"
+    spawner.zone = "test-self1-b"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.dataproc_configs = "gs://bucket/config/,bucket/config/file_A1.yaml,bucket/file_B1.yaml,bucket-notexist/file.yaml,bucket/file-notexist.yaml,bucket/listme/,bucket/config-notexist/file.yaml,gs://bucket/listme/,bucket/config,bucket-two,"
+
+    read_paths = spawner._list_gcs_files(spawner.dataproc_configs)
+
+    assert type(read_paths) == type(config_hierarchy)
+    assert len(read_paths) == len(config_hierarchy)
+    assert set(read_paths) == set(config_hierarchy)
   
   def test_minimium_cluster_definition(self, monkeypatch):
     """ Some keys must always be present for JupyterHub to work. """

@@ -17,6 +17,7 @@
 
 PROJECT_ID=$1
 VM_NAME=$2
+CONFIGS_LOCATION=$3
 DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce4"
 
 cat <<EOT > Dockerfile
@@ -58,6 +59,9 @@ import socket
 c.JupyterHub.hub_ip = '0.0.0.0'
 # The IP address that other services should use to connect to the hub
 c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
+
+c.DataprocSpawner.dataproc_configs = "${CONFIGS_LOCATION}"
+c.DataprocSpawner.dataproc_locations_list = "b,c"
 EOT
 
 
@@ -72,6 +76,7 @@ gcloud beta compute instances create-with-container ${VM_NAME} \
 
 gcloud compute instances describe ${VM_NAME} \
   --project ${PROJECT_ID} \
+  --zone us-central1-a \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
 
 # Clean up
