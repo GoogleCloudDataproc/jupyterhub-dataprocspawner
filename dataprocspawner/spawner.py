@@ -88,7 +88,7 @@ def _validate_proto(data, proto_cls):
         fields_to_del.append(field)
 
     else:
-      warnings.append(f'Removing unknown field {field} for class')
+      warnings.append(f'Removing unknown field {field} for class {proto_cls}')
       fields_to_del.append(field)
 
   for field in fields_to_del:
@@ -111,18 +111,18 @@ def _validate_proto_field(data, field_descriptor):
                 the caller should either fail or remove offending field.
       warnings: List of warnings of fields removed."""
   if not data:
-    return
+    return True, []
   fd = field_descriptor
   warnings = []
 
-  if fd.message:
+  if fd.message and isinstance(fd.message, proto.message.MessageMeta):
     # Don't validate map fields
     if fd.message._meta.options and fd.message._meta.options.map_entry: # pylint: disable=protected-access
       return True, warnings
 
     to_validate = [data] if not fd.repeated else data
     for entry in to_validate:
-      warnings.append(_validate_proto(entry, fd.message))
+      warnings.extend(_validate_proto(entry, fd.message))
     return True, warnings
 
   elif fd.enum:
@@ -141,11 +141,10 @@ def _validate_proto_field(data, field_descriptor):
 
     else:
       # For non-repeated enum fields, let the caller strip the invalid value
-      return data in fd.enum.__members__, warnings
+      return (data in fd.enum.__members__, warnings)
 
   # Other types we don't attempt to validate
-  else:
-    return True, warnings
+  return True, warnings
 
 
 class DataprocSpawner(Spawner):
@@ -549,6 +548,7 @@ class DataprocSpawner(Spawner):
     """
     config_string = self.read_gcs_file(file_path)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
+    config_dict.setdefault('config', {})
 
     # Properties and Metadata might have some values that needs to remain with
     # CamelCase so we remove the properties/metadata from the conversion from
@@ -567,9 +567,6 @@ class DataprocSpawner(Spawner):
     config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
-
-    self.log.debug(f'config_dict before cleaning is {config_dict}')
-    _validate_proto(config_dict, Cluster)
 
     if skip_properties:
       config_dict['config']['software_config']['properties'] = skip_properties
@@ -1007,6 +1004,11 @@ class DataprocSpawner(Spawner):
       # Reads the cluster config from yaml
       self.log.info(f'Reading config file at {gcs_config_file}')
       cluster_data = self.get_cluster_definition(gcs_config_file)
+      # Validate and strip unknown fields
+      # TODO(dingj) expose warnings somehow
+      warnings = _validate_proto(cluster_data, Cluster)
+      self.log.debug(f'Cluster config after cleaning was {cluster_data}')
+      self.log.info(f'Warnings from proto field validation were {warnings}')
 
       # Defines default values if some key is not exists
       cluster_data['config'].setdefault('gce_cluster_config', {})
@@ -1151,15 +1153,6 @@ class DataprocSpawner(Spawner):
              ['accelerator_type_uri']) = (
                  acc_val['accelerator_type_uri'].split('/')[-1]
              )
-
-    # Temporarily disable setting preemptibility field until Dataproc client
-    # libraries support the enum value
-    if cluster_data['config'].setdefault('master_config', {}):
-      cluster_data['config']['master_config'].pop('preemptibility', None)
-    if cluster_data['config'].setdefault('worker_config', {}):
-      cluster_data['config']['worker_config'].pop('preemptibility', None)
-    if cluster_data['config'].setdefault('secondary_worker_config', {}):
-      cluster_data['config']['secondary_worker_config'].pop('preemptibility', None)
 
     # Strip cluster-specific namenode properties
     if (cluster_data['config'].setdefault('software_config', {}) and

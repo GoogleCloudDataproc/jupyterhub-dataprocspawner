@@ -16,20 +16,23 @@
 
 Unit tests for methods within DataprocSpawner (start, stop, and poll).
 """
+import json
+import pytest
+
+import dataprocspawner
+
 from collections import namedtuple
 from dataprocspawner import DataprocSpawner
 from google.auth.credentials import AnonymousCredentials
-from google.cloud.dataproc_v1beta2 import ClusterControllerClient
 from google.cloud.dataproc_v1beta2 import Cluster
+from google.cloud.dataproc_v1beta2 import ClusterControllerClient
 from google.cloud.dataproc_v1beta2 import ClusterStatus
-from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.cloud.dataproc_v1beta2 import Component
 from google.longrunning import operations_pb2
 from google.cloud import storage
 from google.cloud.storage.blob import Blob
 from jupyterhub.objects import Hub, Server
 from unittest import mock
-import json
-import pytest
 
 class MockUser(mock.Mock):
   name = 'fake'
@@ -444,7 +447,6 @@ class TestDataprocSpawner:
     # Verify that we disable preemptibility (temporarily)
     assert 'preemptibility' not in config_built['config']['master_config']
     assert 'preemptibility' not in config_built['config']['worker_config']
-    assert 'preemptibility' not in config_built['config']['secondary_worker_config']
     # Verify that we removed cluster-specific namenode properties
     assert 'hdfs:dfs.namenode.lifeline.rpc-address' not in config_built['config']['software_config']['properties']
     assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']
@@ -532,14 +534,12 @@ class TestDataprocSpawner:
         'initialization_actions': [],
         'lifecycle_config': {},
         'master_config': {
+          'min_cpu_platform': 'AUTOMATIC',
           'disk_config': {
+            'boot_disk_type': 'https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers',
             'boot_disk_size_gb': 1000,
-            'machine_type_uri': 'https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers',
-            'min_cpu_platform': 'AUTOMATIC'
-          }
+          },
         },
-        'secondary_worker_config': {},
-        'worker_config': {},
         'software_config': {
           'image_version': '1.4-debian9',
           'optional_components': [
@@ -753,3 +753,52 @@ class TestDataprocSpawner:
     assert spawner._validate_image_version_supports_component_gateway('2.0.0-RC1-preview') is True
     assert spawner._validate_image_version_supports_component_gateway('weird-unexpected-version-124.3.v2.2020-02-15') is True
     assert spawner._validate_image_version_supports_component_gateway('1.3.weird-version-again') is True
+
+  def test_validate_proto(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/unknown_fields.yaml', 'r').read()
+      return config_string
+
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+
+    cleaned_config = spawner.get_cluster_definition('')
+    warnings = dataprocspawner.spawner._validate_proto(cleaned_config, Cluster)
+
+    # Check that we had appropriate warning messages
+    assert len(warnings) == 7
+    expected_warnings = [
+       'Removing unknown/bad value BAD_ENUM_VALUE for field consume_reservation_type.',
+       "Removing unknown field unknown_field for class <class 'google.cloud.dataproc_v1beta2.types.clusters.NodeInitializationAction'>",
+       'Removing unknown/bad value UNKNOWN_COMPONENT_1 for field optional_components.',
+       'Removing unknown/bad value UNKNOWN_COMPONENT_2 for field optional_components.',
+       'Removing unknown/bad value UNKNOWN_COMPONENT_3 for field optional_components.',
+       "Removing unknown field unknown_field_config_level for class <class 'google.cloud.dataproc_v1beta2.types.clusters.ClusterConfig'>",
+       "Removing unknown field unknown_field_top_level for class <class 'google.cloud.dataproc_v1beta2.types.clusters.Cluster'>",
+    ]
+    for w in expected_warnings:
+      assert w in warnings, f'Expected message {w} in warnings {warnings}'
+
+    raw_config = spawner.get_cluster_definition('')
+    # Construct expected output
+    del raw_config['unknown_field_top_level']
+    del raw_config['config']['unknown_field_config_level']
+    del raw_config['config']['initialization_actions'][0]['unknown_field']
+    del raw_config['config']['gce_cluster_config']['reservation_affinity']['consume_reservation_type']
+    raw_config['config']['software_config']['optional_components'] = [
+        'JUPYTER', 'ZEPPELIN', 'ANACONDA', 'PRESTO']
+
+    # Coerce both of the outputs to proto so we can easily compare equality
+    # this also sanity checks that we have actually stripped all unknown/bad
+    # fields
+    actual_proto = Cluster(cleaned_config)
+    expected_proto = Cluster(raw_config)
+
+    assert actual_proto == expected_proto
