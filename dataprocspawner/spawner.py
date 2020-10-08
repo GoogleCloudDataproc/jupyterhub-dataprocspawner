@@ -19,14 +19,16 @@ import os
 import time
 import random
 
+import proto
 import yaml
 
 from google.api_core import exceptions
 from google.cloud import storage
+from google.cloud.dataproc_v1beta2 import Cluster
 from google.cloud.dataproc_v1beta2 import ClusterControllerClient
 from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud.dataproc_v1beta2 import Component
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
-from google.cloud.dataproc_v1beta2.types.shared import Component
 from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
@@ -54,6 +56,96 @@ def url_path_join(*pieces):
     result = '/'
 
   return result
+
+
+def _validate_proto(data, proto_cls):
+  """Utility method to strip unknown fields and enum values for proto parsing.
+
+  This method recursively calls _validate_proto_field for each field of the
+  proto, deleting unknown or invalid fields as it goes.
+
+  Args:
+  - dict data: representation of a proto as a (possibly nested) dict
+  - proto.message.MessageMeta proto_cls: class of the proto to which the data
+                                         should be parsed
+  Returns:
+    [String]: List of warnings of fields removed
+  """
+  if not isinstance(proto_cls, proto.message.MessageMeta):
+    return
+  if not data or not isinstance(data, dict):
+    return
+
+  meta = proto_cls._meta # pylint: disable=protected-access
+  warnings = []
+  fields_to_del = []
+  for field in data:
+    if field in meta.fields:
+      field_valid, new_warnings = _validate_proto_field(data[field], meta.fields[field])
+      warnings.extend(new_warnings)
+      if not field_valid:
+        warnings.append(f'Removing unknown/bad value {data[field]} for field {field}.')
+        fields_to_del.append(field)
+
+    else:
+      warnings.append(f'Removing unknown field {field} for class')
+      fields_to_del.append(field)
+
+  for field in fields_to_del:
+    del data[field]
+
+  return warnings
+
+
+def _validate_proto_field(data, field_descriptor):
+  """Helper function for validating a single field of a proto.
+
+  *Only* validates message and enum fields.
+  Recursively calls _validate_proto for message fields.
+
+  Args:
+  Returns:
+    (Bool is_valid, [String] warnings):
+      is_valid: True if field is valid after this method returns. False if
+                field is still invalid after this method returns. If False,
+                the caller should either fail or remove offending field.
+      warnings: List of warnings of fields removed."""
+  if not data:
+    return
+  fd = field_descriptor
+  warnings = []
+
+  if fd.message:
+    # Don't validate map fields
+    if fd.message._meta.options and fd.message._meta.options.map_entry: # pylint: disable=protected-access
+      return True, warnings
+
+    to_validate = [data] if not fd.repeated else data
+    for entry in to_validate:
+      warnings.append(_validate_proto(entry, fd.message))
+    return True, warnings
+
+  elif fd.enum:
+    if fd.repeated:
+      # For repeated enum fields, filter out unknown values ourselves
+      to_del = []
+      for i, val in enumerate(data):
+        if val not in fd.enum.__members__:
+          warnings.append(f'Removing unknown/bad value {val} for field {fd.name}.')
+          to_del.append(i)
+      # Delete from the back so we don't mess up later indices
+      to_del.reverse()
+      for i in to_del:
+        del data[i]
+      return True, warnings
+
+    else:
+      # For non-repeated enum fields, let the caller strip the invalid value
+      return data in fd.enum.__members__, warnings
+
+  # Other types we don't attempt to validate
+  else:
+    return True, warnings
 
 
 class DataprocSpawner(Spawner):
@@ -475,6 +567,9 @@ class DataprocSpawner(Spawner):
     config_string = yaml.dump(config_dict)
     config_string = self.camelcase_to_snakecase(config_string)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
+
+    self.log.debug(f'config_dict before cleaning is {config_dict}')
+    _validate_proto(config_dict, Cluster)
 
     if skip_properties:
       config_dict['config']['software_config']['properties'] = skip_properties
