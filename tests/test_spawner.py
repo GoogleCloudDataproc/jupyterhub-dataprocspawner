@@ -532,11 +532,11 @@ class TestDataprocSpawner:
         'initialization_actions': [],
         'lifecycle_config': {},
         'master_config': {
+          'machine_type_uri': 'https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers',
+          'min_cpu_platform': 'AUTOMATIC',
           'disk_config': {
             'boot_disk_size_gb': 1000,
-            'machine_type_uri': 'https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers',
-            'min_cpu_platform': 'AUTOMATIC'
-          }
+          },
         },
         'secondary_worker_config': {},
         'worker_config': {},

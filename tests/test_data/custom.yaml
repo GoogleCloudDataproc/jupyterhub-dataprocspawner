@@ -11,10 +11,10 @@ config:
       key_with_underscore: https://downloads.io/protected/files/enterprise-trial.tar.gz
       key_with_underscore_too: some_UPPER_and_UlowerU:1234
   masterConfig:
+    machineTypeUri: https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers
+    minCpuPlatform: AUTOMATIC
     diskConfig:
       bootDiskSizeGb: 1000
-      machineTypeUri: https://all-sort.of/lowerUpper/including-Dash/and.1.2_numbers
-      minCpuPlatform: AUTOMATIC
   softwareConfig:
     optionalComponents:
     - 1
