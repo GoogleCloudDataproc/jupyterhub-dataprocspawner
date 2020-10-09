@@ -769,6 +769,16 @@ class TestDataprocSpawner:
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
 
+    spawner.project = "test-project"
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic_uri.yaml',
+      'cluster_zone': 'us-east1-d'
+    }
+
     cleaned_config = spawner.get_cluster_definition('')
     warnings = dataprocspawner.spawner._validate_proto(cleaned_config, Cluster)
 
@@ -802,3 +812,14 @@ class TestDataprocSpawner:
     expected_proto = Cluster(raw_config)
 
     assert actual_proto == expected_proto
+
+    # Now check that the config with resolved fields is correct as well
+    config_built = spawner._build_cluster_config()
+    print(config_built)
+
+    assert 'unknown_field_top_level' not in config_built
+    assert 'unknown_field_config_level' not in config_built['config']
+    assert 'unknown_field' not in config_built['config']['initialization_actions'][0]
+    assert 'consume_reservation_type' not in config_built['config']['gce_cluster_config']['reservation_affinity']
+    assert  raw_config['config']['software_config']['optional_components'] == [
+        'JUPYTER', 'ZEPPELIN', 'ANACONDA', 'PRESTO']
