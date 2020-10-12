@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,7 +66,7 @@ EOT
 
 mkdir -p /tmp/keys
 # cp ~/.config/gcloud/application_default_credentials.json /tmp/keys
-cp ~/.config/gcloud/legacy_credentials/${USER_EMAIL}/adc.json /tmp/keys/application_default_credentials.json
+cp ~/.config/gcloud/legacy_credentials/"${USER_EMAIL}"/adc.json /tmp/keys/application_default_credentials.json
 
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 
@@ -78,6 +79,6 @@ rm jupyterhub_config.py
 docker run -it \
 -p 8000:8000 \
 -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json  \
--v $GOOGLE_APPLICATION_CREDENTIALS:/tmp/keys/application_default_credentials.json:ro \
--e GOOGLE_CLOUD_PROJECT=${PROJECT} \
+-v "$GOOGLE_APPLICATION_CREDENTIALS":/tmp/keys/application_default_credentials.json:ro \
+-e GOOGLE_CLOUD_PROJECT="${PROJECT}" \
 ain:latest
