@@ -34,6 +34,7 @@ setup(
         'traitlets>=4.3.2',
         'google-cloud-core>=1.3.0',
         'google-cloud-secret-manager>=0.1.1',
+        'google-cloud-logging>=1.15'
         'pyyaml>=5.1.2',
         'oauthenticator>=0.9.0',
         'pyjwt>=1.7.1'

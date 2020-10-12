@@ -18,11 +18,16 @@ import re
 import os
 import time
 import random
+import math
+from google.protobuf.json_format import MessageToDict
+from datetime import datetime as dt
+from datetime import timedelta
 
 import yaml
 
 from google.api_core import exceptions
 from google.cloud import storage
+from google.cloud import logging_v2
 from google.cloud.dataproc_v1beta2 import ClusterControllerClient
 from google.cloud.dataproc_v1beta2 import ClusterStatus
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
@@ -32,6 +37,9 @@ from traitlets import List, Unicode, Dict, Bool
 
 from .customize_cluster import get_base_cluster_html_form
 from .customize_cluster import get_custom_cluster_html_form
+
+from async_generator import async_generator
+from async_generator import yield_
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -54,7 +62,6 @@ def url_path_join(*pieces):
     result = '/'
 
   return result
-
 
 class DataprocSpawner(Spawner):
   """Spawner for Dataproc clusters.
@@ -223,6 +230,9 @@ class DataprocSpawner(Spawner):
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
 
+    # https://googleapis.dev/python/google-api-core/latest/operation.html
+    self.operation = None
+
     if mock:
       # Mock the API
       self.dataproc_client = kwargs.get('dataproc')
@@ -242,10 +252,9 @@ class DataprocSpawner(Spawner):
 
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
 
-
-################################################################################
-# Required functions
-################################################################################
+  ##############################################################################
+  # Required functions
+  ##############################################################################
   async def start(self):
     """ Creates a Dataproc cluster.
     If a cluster with the same name already exists, logs a warning and returns
@@ -259,16 +268,18 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
 
     elif await self.exists(self.clustername()):
-      self.log.warning(f'Cluster named {self.clustername()} already exists')
+      self.log.warning(
+        (f'Cluster named {self.clustername()} already exists. If this is not a '
+        'server that you spawned before, the next page will fail.'))
 
     else:
       if self.gcs_user_folder:
         self.create_example_notebooks()
-      await self.create_cluster()
+      self.operation = await self.create_cluster()
 
       start_notebook_cmd = self.cmd + self.get_args()
       start_notebook_cmd = ' '.join(start_notebook_cmd)
-      self.log.info(start_notebook_cmd)
+      self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
 
     return (self.get_dataproc_master_fqdn(), self.port)
 
@@ -286,9 +297,10 @@ class DataprocSpawner(Spawner):
 
   async def poll(self):
     status = await self.get_cluster_status(self.clustername())
-    if status is None or status in (ClusterStatus.State.ERROR,
-                                    ClusterStatus.State.DELETING,
+    if status is None or status in (ClusterStatus.State.DELETING,
                                     ClusterStatus.State.UNKNOWN):
+      return 1
+    elif status == ClusterStatus.State.ERROR:
       return 1
     elif status == ClusterStatus.State.CREATING:
       self.log.info(f'{self.clustername()} is creating')
@@ -296,10 +308,113 @@ class DataprocSpawner(Spawner):
     elif status in (ClusterStatus.State.RUNNING, ClusterStatus.State.UPDATING):
       self.log.info(f'{self.clustername()} is up and running')
       return None
+  
+  @async_generator
+  async def progress(self):
+    """ Loads bars progressively and displays cluster logs.
 
-################################################################################
-# User form functions
-################################################################################
+    Uses Cloud Logging method names to define a list of logs to display on the
+    progress page. Those methods frames how many steps the progress bar takes
+    before the cluster creation operation is done.
+
+    If the operation is succesful, the page redirects to the notebook as usual
+    with JupyterHub.
+
+    If the operation failes, the progress bar is red and the user remains on the
+    page. Error logs are displayed on the page.
+    """
+    # Displays operation detail
+    if not self.operation:
+      msg_existing = (
+        'Trying to load progress but no cluster being created. One reason '
+         f'might be that a cluster named {self.clustername()} already exists '
+         'and it was not spawned from this Dataproc Hub instance.')
+         
+      await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
+      raise RuntimeError(msg_existing)
+
+    operation_id = self.operation.operation.name.split('/')[-1]
+    cluster_uuid = self.operation.metadata.cluster_uuid
+    progress = 5
+    html_message = (
+      f'Operation {operation_id} is creating cluster with uuid {cluster_uuid}')
+    await yield_({"progress": progress, "html_message": html_message})
+
+    # Displays progress and logs using `methods` in Cloud Logging
+    logging_client = logging_v2.LoggingServiceV2Client()
+    log_methods = {
+      "doStart",
+      "instantiateMe",
+      "getOrCreateAgent",
+      "run",
+      "runBuiltinInitializationActions",
+      "awaitNameNodeSafeModeExit",
+      "runCustomInitializationActions"
+    }
+    log_size = len(log_methods)
+    log_added = []
+
+    log_delay = 30    # Might be a few secs before logs are available for reads.
+    log_window = 20   # Time window length to read logs from.
+    resources = [f'projects/{self.project}']
+    methods_filter = " OR ".join(f'"{method}"' for method in log_methods)
+
+    def _calculate_progress(log_added_size, log_expecting_size=log_size):
+      """ Calculates progress bar size based on remaning log types. """
+      return (1 + log_added_size) * math.floor((100 - 10)/log_expecting_size)
+
+    # This loop gets broken when the cluster creation operation finishes either
+    # with a success or failure.
+    origin_utc = start_utc = end_utc = done_utc = None
+    while not done_utc:
+      if self.operation.done():
+        done_utc = dt.utcnow()
+      origin_utc = done_utc or dt.utcnow()
+      start_utc = end_utc or (origin_utc - timedelta(0, log_delay+log_window))
+      end_utc = done_utc or (start_utc + timedelta(0, log_window))
+      end_logs = end_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+      start_logs = start_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+      filters = (
+        f'resource.type=cloud_dataproc_cluster AND '
+        f'resource.labels.cluster_name={self.clustername()} AND '
+        f'timestamp>="{start_logs}" timestamp<="{end_logs}" AND '
+        f'log_name="projects/{self.project}/logs/google.dataproc.agent" AND '
+        f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
+        f' AND jsonPayload.method=({methods_filter})'
+      )
+      self.log.info(f'Filters are: {filters}')
+
+      # A problem with Cloud Logging should not fail the cluster creation.
+      try:
+        entries = logging_client.list_log_entries(resources, filter_=filters)
+      except:
+        await yield_({"progress": progress, "message": "Logs not available."})
+        continue
+      
+      # Displays logs based on the methods and keep track of the methods. 
+      # The progress bar advances only for new method but displays all logs.
+      for entry in entries:
+        json_payload = MessageToDict(entry.json_payload)
+        payload_method = json_payload.get('method')
+        payload_message = f'{payload_method}: {json_payload.get("message")}'
+        self.log.info(payload_message)
+        log_added.append(payload_method)
+        progress = _calculate_progress(len(set(log_added)))
+        await yield_({"progress": progress, "message": payload_message})
+    
+      if not done_utc:
+        time.sleep(log_window)
+    
+    if self.operation.metadata.status.inner_state == "FAILED":
+      await yield_({
+        'progress': 100, 
+        'failed': True, 
+        'message': f'FAILED: {self.operation.operation.error.message}'})
+
+  ##############################################################################
+  # User form functions
+  ##############################################################################
   def _options_form_default(self):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
@@ -485,7 +600,6 @@ class DataprocSpawner(Spawner):
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
 
-
   def create_example_notebooks(self):
     default_path = self.default_notebooks_gcs_path
     user_folder = self.gcs_user_folder
@@ -526,7 +640,6 @@ class DataprocSpawner(Spawner):
     self.cluster_definition = self._build_cluster_config(self.cluster_data)
 
     cluster = await self._create_cluster(self.cluster_definition)
-
     return cluster
 
   async def _create_cluster(self, cluster_data, try_count=3):
@@ -635,6 +748,20 @@ class DataprocSpawner(Spawner):
     if not folder.endswith('/'):
       folder += '/'
     return bucket, folder
+  
+  def _clean_gcs_path(self, gcs_path, return_gs=True, return_slash=False):
+    """ Takes a GCS path starting with or without gs:// and returns a consistent
+    value. 
+    Args:
+      - str gcs_path: a GCS path URI that starts with gs:// or not.
+      - bool return_gs: if True returns a string starting with gs://, otherwise
+      returns a GCS path that starts directly with the bucket name. """
+    gcs_starter = 'gs://'
+    if (gcs_path.startswith(gcs_starter)) and (not return_gs):
+      gcs_path = gcs_path[len(gcs_starter):]
+    if (gcs_path.endswith('/')) and (not return_slash):
+      gcs_path = gcs_path[:-1]
+    return gcs_path
 
   def _clean_gcs_path(self, gcs_path, return_gs=True, return_slash=False):
     """ Takes a GCS path starting with or without gs:// and returns a consistent

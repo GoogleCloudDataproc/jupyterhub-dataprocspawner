@@ -13,10 +13,11 @@
 # limitations under the License.
 
 echo "This script only tests the deployment of JupyterHub but can not spawn a cluster."
-echo "Usage: ./try_local.sh PROJECT_ID CONFIGS_LOCATION."
+echo "Usage: ./try_local.sh PROJECT_ID CONFIGS_LOCATION USER_EMAIL."
 
 PROJECT=$1
 CONFIGS_LOCATION=$2
+USER_EMAIL=$3
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
@@ -63,7 +64,8 @@ c.DataprocSpawner.dataproc_locations_list = "b,c"
 EOT
 
 mkdir -p /tmp/keys
-cp ~/.config/gcloud/application_default_credentials.json /tmp/keys
+# cp ~/.config/gcloud/application_default_credentials.json /tmp/keys
+cp ~/.config/gcloud/legacy_credentials/${USER_EMAIL}/adc.json /tmp/keys/application_default_credentials.json
 
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 
