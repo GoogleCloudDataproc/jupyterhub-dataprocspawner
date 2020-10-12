@@ -78,21 +78,18 @@ def _validate_proto(data, proto_cls):
 
   meta = proto_cls._meta # pylint: disable=protected-access
   warnings = []
-  fields_to_del = []
-  for field in data:
+  # Iterate over copy of data to avoid concurrent iteration and modification
+  for field in data.copy():
     if field in meta.fields:
       field_valid, new_warnings = _validate_proto_field(data[field], meta.fields[field])
       warnings.extend(new_warnings)
       if not field_valid:
         warnings.append(f'Removing unknown/bad value {data[field]} for field {field}.')
-        fields_to_del.append(field)
+        del data[field]
 
     else:
       warnings.append(f'Removing unknown field {field} for class {proto_cls}')
-      fields_to_del.append(field)
-
-  for field in fields_to_del:
-    del data[field]
+      del data[field]
 
   return warnings
 
@@ -104,6 +101,10 @@ def _validate_proto_field(data, field_descriptor):
   Recursively calls _validate_proto for message fields.
 
   Args:
+    - Any data: representation of a single proto field. This could be
+                any valid type.
+    - proto.fields.Field field_descriptor: Field descriptor for a single
+                                           proto field.
   Returns:
     (Bool is_valid, [String] warnings):
       is_valid: True if field is valid after this method returns. False if
