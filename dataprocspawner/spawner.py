@@ -19,27 +19,22 @@ import os
 import time
 import random
 import math
-from google.protobuf.json_format import MessageToDict
-from datetime import datetime as dt
-from datetime import timedelta
-
 import yaml
+from datetime import timedelta, datetime as dt
 
+from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
-from google.cloud import storage
-from google.cloud import logging_v2
-from google.cloud.dataproc_v1beta2 import ClusterControllerClient
-from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud import storage, logging_v2
+from google.cloud.dataproc_v1beta2 import ClusterControllerClient, ClusterStatus
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
-from .customize_cluster import get_base_cluster_html_form
-from .customize_cluster import get_custom_cluster_html_form
+from .customize_cluster import (get_base_cluster_html_form,
+                                get_custom_cluster_html_form)
 
-from async_generator import async_generator
-from async_generator import yield_
+from async_generator import async_generator, yield_
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -53,14 +48,12 @@ def url_path_join(*pieces):
   final = pieces[-1].endswith('/')
   stripped = [s.strip('/') for s in pieces]
   result = '/'.join(s for s in stripped if s)
-
   if initial:
     result = '/' + result
   if final:
     result = result + '/'
   if result == '//':
     result = '/'
-
   return result
 
 class DataprocSpawner(Spawner):
@@ -308,7 +301,7 @@ class DataprocSpawner(Spawner):
     elif status in (ClusterStatus.State.RUNNING, ClusterStatus.State.UPDATING):
       self.log.info(f'{self.clustername()} is up and running')
       return None
-  
+
   @async_generator
   async def progress(self):
     """ Loads bars progressively and displays cluster logs.
@@ -329,7 +322,7 @@ class DataprocSpawner(Spawner):
         'Trying to load progress but no cluster being created. One reason '
          f'might be that a cluster named {self.clustername()} already exists '
          'and it was not spawned from this Dataproc Hub instance.')
-         
+
       await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
       raise RuntimeError(msg_existing)
 
@@ -338,18 +331,18 @@ class DataprocSpawner(Spawner):
     progress = 5
     html_message = (
       f'Operation {operation_id} is creating cluster with uuid {cluster_uuid}')
-    await yield_({"progress": progress, "html_message": html_message})
+    await yield_({'progress': progress, 'html_message': html_message})
 
     # Displays progress and logs using `methods` in Cloud Logging
     logging_client = logging_v2.LoggingServiceV2Client()
     log_methods = {
-      "doStart",
-      "instantiateMe",
-      "getOrCreateAgent",
-      "run",
-      "runBuiltinInitializationActions",
-      "awaitNameNodeSafeModeExit",
-      "runCustomInitializationActions"
+      'doStart',
+      'instantiateMe',
+      'getOrCreateAgent',
+      'run',
+      'runBuiltinInitializationActions',
+      'awaitNameNodeSafeModeExit',
+      'runCustomInitializationActions'
     }
     log_size = len(log_methods)
     log_added = []
@@ -357,7 +350,7 @@ class DataprocSpawner(Spawner):
     log_delay = 30    # Might be a few secs before logs are available for reads.
     log_window = 20   # Time window length to read logs from.
     resources = [f'projects/{self.project}']
-    methods_filter = " OR ".join(f'"{method}"' for method in log_methods)
+    methods_filter = ' OR '.join(f'"{method}"' for method in log_methods)
 
     def _calculate_progress(log_added_size, log_expecting_size=log_size):
       """ Calculates progress bar size based on remaning log types. """
@@ -388,11 +381,14 @@ class DataprocSpawner(Spawner):
       # A problem with Cloud Logging should not fail the cluster creation.
       try:
         entries = logging_client.list_log_entries(resources, filter_=filters)
-      except:
-        await yield_({"progress": progress, "message": "Logs not available."})
+      except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
+        await yield_({'progress': progress, 'message': e.message})
         continue
-      
-      # Displays logs based on the methods and keep track of the methods. 
+      except ValueError:
+        await yield_({'progress': progress, 'message': 'ValueError'})
+        continue
+
+      # Displays logs based on the methods and keep track of the methods.
       # The progress bar advances only for new method but displays all logs.
       for entry in entries:
         json_payload = MessageToDict(entry.json_payload)
@@ -401,15 +397,15 @@ class DataprocSpawner(Spawner):
         self.log.info(payload_message)
         log_added.append(payload_method)
         progress = _calculate_progress(len(set(log_added)))
-        await yield_({"progress": progress, "message": payload_message})
-    
+        await yield_({'progress': progress, 'message': payload_message})
+
       if not done_utc:
         time.sleep(log_window)
-    
-    if self.operation.metadata.status.inner_state == "FAILED":
+
+    if self.operation.metadata.status.inner_state == 'FAILED':
       await yield_({
-        'progress': 100, 
-        'failed': True, 
+        'progress': 100,
+        'failed': True,
         'message': f'FAILED: {self.operation.operation.error.message}'})
 
   ##############################################################################
@@ -748,20 +744,6 @@ class DataprocSpawner(Spawner):
     if not folder.endswith('/'):
       folder += '/'
     return bucket, folder
-  
-  def _clean_gcs_path(self, gcs_path, return_gs=True, return_slash=False):
-    """ Takes a GCS path starting with or without gs:// and returns a consistent
-    value. 
-    Args:
-      - str gcs_path: a GCS path URI that starts with gs:// or not.
-      - bool return_gs: if True returns a string starting with gs://, otherwise
-      returns a GCS path that starts directly with the bucket name. """
-    gcs_starter = 'gs://'
-    if (gcs_path.startswith(gcs_starter)) and (not return_gs):
-      gcs_path = gcs_path[len(gcs_starter):]
-    if (gcs_path.endswith('/')) and (not return_slash):
-      gcs_path = gcs_path[:-1]
-    return gcs_path
 
   def _clean_gcs_path(self, gcs_path, return_gs=True, return_slash=False):
     """ Takes a GCS path starting with or without gs:// and returns a consistent

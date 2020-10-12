@@ -37,18 +37,18 @@ class MockUser(mock.Mock):
 
   @property
   def escaped_name(self):
-      return self.name
+    return self.name
 
   @property
   def url(self):
-      return self.server.url
+    return self.server.url
 
 class TestDataprocSpawner:
 
   # Spawner defaults to us-central1 for the region
-  region = "us-central1"
-  zone = "us-central1-a"
-  gcs_notebooks = "gs://users-notebooks"
+  region = 'us-central1'
+  zone = 'us-central1-a'
+  gcs_notebooks = 'gs://users-notebooks'
 
   @pytest.mark.asyncio
   async def test_start_normal(self):
@@ -62,11 +62,12 @@ class TestDataprocSpawner:
     # Force no existing clusters to bypass the check in the spawner
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     # Test that the traitlets work
-    spawner.project = "test-create"
-    assert spawner.project == "test-create"
+    spawner.project = 'test-create'
+    assert spawner.project == 'test-create'
     assert spawner.region == self.region
 
     (ip, port) = await spawner.start()
@@ -77,9 +78,11 @@ class TestDataprocSpawner:
     mock_client.create_cluster.assert_called_once()
 
     assert spawner.cluster_definition['cluster_name'] == 'dataprochub-fake'
-    assert spawner.cluster_definition['config']['gce_cluster_config']['zone_uri'] == f'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}'
+    assert (spawner.cluster_definition['config']['gce_cluster_config']['zone_uri']) == (
+        'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}')
 
-    env = json.loads(spawner.cluster_definition['config']['software_config']['properties']['dataproc:jupyter.hub.env'])
+    env = json.loads(spawner.cluster_definition['config']['software_config']
+        ['properties']['dataproc:jupyter.hub.env'])
     assert env['JUPYTERHUB_API_URL'] is not None
 
   @pytest.mark.asyncio
@@ -105,16 +108,17 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "test-stop"
-    assert spawner.project == "test-stop"
+    spawner.project = 'test-stop'
+    assert spawner.project == 'test-stop'
     assert spawner.region == self.region
 
     response = await spawner.stop()
 
     mock_client.delete_cluster.assert_called_once_with(
-        project_id="test-stop",
+        project_id='test-stop',
         region=self.region,
         cluster_name='dataprochub-fake')
 
@@ -125,10 +129,11 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "test-stop-no-cluster"
-    assert spawner.project == "test-stop-no-cluster"
+    spawner.project = 'test-stop-no-cluster'
+    assert spawner.project == 'test-stop-no-cluster'
 
     response = await spawner.stop()
 
@@ -138,8 +143,8 @@ class TestDataprocSpawner:
   async def test_poll_normal(self):
 
     expected_response = {
-      "status": {
-          "state": ClusterStatus.State.RUNNING
+      'status': {
+          'state': ClusterStatus.State.RUNNING
       }
     }
     expected_response = Cluster(**expected_response)
@@ -148,10 +153,11 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = expected_response
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "test-poll"
-    assert spawner.project == "test-poll"
+    spawner.project = 'test-poll'
+    assert spawner.project == 'test-poll'
 
     assert await spawner.poll() == None
 
@@ -159,8 +165,8 @@ class TestDataprocSpawner:
   async def test_poll_create(self):
 
     expected_response = {
-      "status": {
-          "state": ClusterStatus.State.CREATING
+      'status': {
+          'state': ClusterStatus.State.CREATING
       }
     }
     expected_response = Cluster(**expected_response)
@@ -171,8 +177,8 @@ class TestDataprocSpawner:
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "test-poll-create"
-    assert spawner.project == "test-poll-create"
+    spawner.project = 'test-poll-create'
+    assert spawner.project == 'test-poll-create'
 
     assert await spawner.poll() == None
 
@@ -183,10 +189,11 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "test-poll-no-cluster"
-    assert spawner.project == "test-poll-no-cluster"
+    spawner.project = 'test-poll-no-cluster'
+    assert spawner.project == 'test-poll-no-cluster'
 
     assert await spawner.poll() == 1
 
@@ -195,10 +202,11 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
-    spawner.project = "non-domain-scoped"
-    assert spawner.project == "non-domain-scoped"
+    spawner.project = 'non-domain-scoped'
+    assert spawner.project == 'non-domain-scoped'
 
     (ip, port) = await spawner.start()
     assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
@@ -209,7 +217,8 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test:domain-scoped"
     assert spawner.project == "test:domain-scoped"
@@ -226,7 +235,8 @@ class TestDataprocSpawner:
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+                              _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     assert spawner._clean_gcs_path(path) == "gs://bucket/config"
     assert spawner._clean_gcs_path(path, return_gs=False) == "bucket/config"
@@ -278,7 +288,15 @@ class TestDataprocSpawner:
     spawner.zone = "test-self1-b"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
-    spawner.dataproc_configs = "gs://bucket/config/,bucket/config/file_A1.yaml,bucket/file_B1.yaml,bucket-notexist/file.yaml,bucket/file-notexist.yaml,bucket/listme/,bucket/config-notexist/file.yaml,gs://bucket/listme/,bucket/config,bucket-two,"
+    spawner.dataproc_configs = (
+        "gs://bucket/config/,"
+        "bucket/config/file_A1.yaml,"
+        "bucket/file_B1.yaml,"
+        "bucket-notexist/file.yaml,"
+        "bucket/file-notexist.yaml,"
+        "bucket/listme/,"
+        "bucket/config-notexist/file.yaml,"
+        "gs://bucket/listme/,bucket/config,bucket-two,")
 
     read_paths = spawner._list_gcs_files(spawner.dataproc_configs)
 
