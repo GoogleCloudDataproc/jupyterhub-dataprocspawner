@@ -39,6 +39,6 @@ setup(
         'oauthenticator>=0.9.0',
         'pyjwt>=1.7.1'
     ],
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest", "pytest-asyncio"],
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest', 'pytest-asyncio'],
 )
