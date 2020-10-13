@@ -225,6 +225,8 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
+    self.cluster_uuid = None
+    self.log_added = set()
 
     if mock:
       # Mock the API
@@ -316,7 +318,6 @@ class DataprocSpawner(Spawner):
     If the operation failes, the progress bar is red and the user remains on the
     page. Error logs are displayed on the page.
     """
-    # Displays operation detail
     if not self.operation:
       msg_existing = (
         'Trying to load progress but no cluster being created. One reason '
@@ -327,10 +328,10 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(msg_existing)
 
     operation_id = self.operation.operation.name.split('/')[-1]
-    cluster_uuid = self.operation.metadata.cluster_uuid
+    self.cluster_uuid = self.operation.metadata.cluster_uuid
     min_progress = 5
     html_message = (
-      f'Operation {operation_id} is creating cluster with uuid {cluster_uuid}')
+      f'Operation {operation_id} is creating cluster uuid {self.cluster_uuid}')
     await yield_({'progress': min_progress, 'html_message': html_message})
 
     # Displays progress and logs using `methods` in Cloud Logging
@@ -345,14 +346,24 @@ class DataprocSpawner(Spawner):
       'runCustomInitializationActions'
     }
     log_size = len(log_methods)
-    log_added = set()
+    # log_added = set()
 
-    log_delay = 30    # Might be a few secs before logs are available for reads.
+    log_delay = 40    # Might be a few secs before logs are available for reads.
     log_window = 20   # Time window length to read logs from.
     resources = [f'projects/{self.project}']
     methods_filter = ' OR '.join(f'"{method}"' for method in log_methods)
 
-    def _calculate_progress(current_size, expected_size=log_size,
+    filters_base = (
+      f'resource.type=cloud_dataproc_cluster AND '
+      f'resource.labels.cluster_name="{self.clustername()}" AND '
+      f'resource.labels.cluster_uuid="{self.cluster_uuid}" AND '
+      f'log_name="projects/{self.project}/logs/google.dataproc.agent" AND '
+      f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
+      f' AND jsonPayload.method=({methods_filter})'
+    )
+    self.log.info(f'Filters without timestamps are: {filters_base}')
+
+    def _calculate_progress(current_size, expected_size=log_size, full=False,
                             max_progress=90, min_progress=min_progress):
       """ Calculates progress bar size.
 
@@ -372,8 +383,10 @@ class DataprocSpawner(Spawner):
         (int) Length of the progress bar between max_progress and min_progress.
         Can not be more than 100 because a full loaded bar is 100%.
       """
+      if full:
+        return 100
       max_progress = min(max_progress, 100 - min_progress)
-      return expected_size * floor(max_progress/current_size) + min_progress
+      return current_size * floor(max_progress/expected_size) + min_progress
 
     # This loop gets broken when the cluster creation operation finishes either
     # with a success or failure.
@@ -385,42 +398,37 @@ class DataprocSpawner(Spawner):
           done_utc = dt.utcnow()
       except exceptions.GoogleAPICallError as e:
         self.log.warning(f'Error operation.done(): {e.message}')
+
       origin_utc = done_utc or dt.utcnow()
       start_utc = end_utc or (origin_utc - timedelta(0, log_delay+log_window))
       end_utc = done_utc or (start_utc + timedelta(0, log_window))
       end_logs = end_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
       start_logs = start_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
-      filters = (
-        f'resource.type=cloud_dataproc_cluster AND '
-        f'resource.labels.cluster_name={self.clustername()} AND '
-        f'timestamp>="{start_logs}" timestamp<="{end_logs}" AND '
-        f'log_name="projects/{self.project}/logs/google.dataproc.agent" AND '
-        f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
-        f' AND jsonPayload.method=({methods_filter})'
-      )
-      self.log.info(f'Filters are: {filters}')
+      filters = (f'{filters_base} AND '
+                 f'timestamp>="{start_logs}" AND '
+                 f'timestamp<="{end_logs}"')
 
-      # A problem with Cloud Logging should not fail the cluster creation.
+      # Displays logs based on the methods and keep track of the methods.
+      # The progress bar advances only for new method but displays all logs.
       try:
-        entries = logging_client.list_log_entries(resources, filter_=filters)
+        self.log.info(f'Trying to get logs from: {start_logs} to: {end_logs}')
+        for entry in logging_client.list_log_entries(resources, filter_=filters):
+          json_payload = MessageToDict(entry.json_payload)
+          payload_method = json_payload.get('method')
+          payload_message = f'{payload_method}: {json_payload.get("message")}'
+          self.log_added.add(payload_method)
+          progress = _calculate_progress(current_size=len(self.log_added),
+                                         full=(done_utc is not None))
+          self.log.info(f'progress: {progress}, '
+                        f'payload_message: {payload_message}')
+          await yield_({'progress': progress, 'message': payload_message})
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
         await yield_({'progress': progress, 'message': e.message})
         continue
       except ValueError:
         await yield_({'progress': progress, 'message': 'ValueError'})
         continue
-
-      # Displays logs based on the methods and keep track of the methods.
-      # The progress bar advances only for new method but displays all logs.
-      for entry in entries:
-        json_payload = MessageToDict(entry.json_payload)
-        payload_method = json_payload.get('method')
-        payload_message = f'{payload_method}: {json_payload.get("message")}'
-        self.log.info(payload_message)
-        log_added.add(payload_method)
-        progress = _calculate_progress(len(log_added))
-        await yield_({'progress': progress, 'message': payload_message})
 
       if not done_utc:
         time.sleep(log_window)
