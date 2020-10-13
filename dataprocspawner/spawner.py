@@ -18,8 +18,8 @@ import re
 import os
 import time
 import random
-import math
 import yaml
+from math import floor
 from datetime import timedelta, datetime as dt
 
 from google.protobuf.json_format import MessageToDict
@@ -328,10 +328,10 @@ class DataprocSpawner(Spawner):
 
     operation_id = self.operation.operation.name.split('/')[-1]
     cluster_uuid = self.operation.metadata.cluster_uuid
-    progress = 5
+    min_progress = 5
     html_message = (
       f'Operation {operation_id} is creating cluster with uuid {cluster_uuid}')
-    await yield_({'progress': progress, 'html_message': html_message})
+    await yield_({'progress': min_progress, 'html_message': html_message})
 
     # Displays progress and logs using `methods` in Cloud Logging
     logging_client = logging_v2.LoggingServiceV2Client()
@@ -345,23 +345,46 @@ class DataprocSpawner(Spawner):
       'runCustomInitializationActions'
     }
     log_size = len(log_methods)
-    log_added = []
+    log_added = set()
 
     log_delay = 30    # Might be a few secs before logs are available for reads.
     log_window = 20   # Time window length to read logs from.
     resources = [f'projects/{self.project}']
     methods_filter = ' OR '.join(f'"{method}"' for method in log_methods)
 
-    def _calculate_progress(log_added_size, log_expecting_size=log_size):
-      """ Calculates progress bar size based on remaning log types. """
-      return (1 + log_added_size) * math.floor((100 - 10)/log_expecting_size)
+    def _calculate_progress(current_size, expected_size=log_size,
+                            max_progress=90, min_progress=min_progress):
+      """ Calculates progress bar size.
+
+      Uses the number of deduplicate logs types (methods, etc...) already logged
+      to calculate the advancement of the progress bar.
+
+      Args:
+        current_size (int): number of items already processed.
+        expected_size (int): number of items that should be processed.
+        max_progress (int): top end of the progress bar. Generally strictly less
+                            than 100 to give room for non-displayed logs/tasks.
+        min_progress (int): bottom end of the progress bar. Generally the value
+                            of the original progress. The bar should not display
+                            an advancement below this value.
+
+      Returns:
+        (int) Length of the progress bar between max_progress and min_progress.
+        Can not be more than 100 because a full loaded bar is 100%.
+      """
+      max_progress = min(max_progress, 100 - min_progress)
+      return expected_size * floor(max_progress/current_size) + min_progress
 
     # This loop gets broken when the cluster creation operation finishes either
     # with a success or failure.
     origin_utc = start_utc = end_utc = done_utc = None
+    progress = min_progress
     while not done_utc:
-      if self.operation.done():
-        done_utc = dt.utcnow()
+      try:
+        if self.operation.done():
+          done_utc = dt.utcnow()
+      except exceptions.GoogleAPICallError as e:
+        self.log.warning(f'Error operation.done(): {e.message}')
       origin_utc = done_utc or dt.utcnow()
       start_utc = end_utc or (origin_utc - timedelta(0, log_delay+log_window))
       end_utc = done_utc or (start_utc + timedelta(0, log_window))
@@ -395,8 +418,8 @@ class DataprocSpawner(Spawner):
         payload_method = json_payload.get('method')
         payload_message = f'{payload_method}: {json_payload.get("message")}'
         self.log.info(payload_message)
-        log_added.append(payload_method)
-        progress = _calculate_progress(len(set(log_added)))
+        log_added.add(payload_method)
+        progress = _calculate_progress(len(log_added))
         await yield_({'progress': progress, 'message': payload_message})
 
       if not done_utc:
