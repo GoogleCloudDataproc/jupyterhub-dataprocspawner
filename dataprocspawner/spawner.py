@@ -19,8 +19,8 @@ import os
 import time
 import random
 import yaml
-from math import floor
-from datetime import timedelta, datetime as dt
+import math
+from datetime import datetime as dt
 
 from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
@@ -34,7 +34,7 @@ from traitlets import List, Unicode, Dict, Bool
 from .customize_cluster import (get_base_cluster_html_form,
                                 get_custom_cluster_html_form)
 
-from async_generator import async_generator, yield_
+from async_generator import async_generator, yield_, aclosing
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -225,8 +225,7 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
-    self.cluster_uuid = None
-    self.log_added = set()
+    self.log_shown = set()
 
     if mock:
       # Mock the API
@@ -305,6 +304,35 @@ class DataprocSpawner(Spawner):
       return None
 
   @async_generator
+  async def _generate_progress(self):
+    """Private wrapper of progress generator
+
+    This method is always an async generator and will always yield at least one event.
+    """
+    if not self._spawn_pending or not self.operation:
+      self.log.warning(
+          "Spawn not pending, can't generate progress for %s", self._log_name)
+      return
+
+    operation_id = self.operation.operation.name.split('/')[-1]
+    cluster_uuid = self.operation.metadata.cluster_uuid
+    operation_done = False
+
+    try:
+      operation_done = self.operation.done()
+    except exceptions.GoogleAPICallError as e:
+      self.log.warning(f'Error operation.done(): {e.message}')
+
+    if not operation_done:
+      await yield_({'progress': 0, 'message': 'Server requested'})
+      html_message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
+      await yield_({'progress': 5, 'html_message': html_message})
+
+    async with aclosing(self.progress()) as progress:
+      async for event in progress:
+        await yield_(event)
+
+  @async_generator
   async def progress(self):
     """ Loads bars progressively and displays cluster logs.
 
@@ -327,102 +355,38 @@ class DataprocSpawner(Spawner):
       await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
       raise RuntimeError(msg_existing)
 
-    operation_id = self.operation.operation.name.split('/')[-1]
-    self.cluster_uuid = self.operation.metadata.cluster_uuid
-    min_progress = 5
-    html_message = (
-      f'Operation {operation_id} is creating cluster uuid {self.cluster_uuid}')
-    await yield_({'progress': min_progress, 'html_message': html_message})
-
-    # Displays progress and logs using `methods` in Cloud Logging
+    progress = 5
     logging_client = logging_v2.LoggingServiceV2Client()
-    log_methods = {
-      'doStart',
-      'instantiateMe',
-      'getOrCreateAgent',
-      'run',
-      'runBuiltinInitializationActions',
-      'awaitNameNodeSafeModeExit',
-      'runCustomInitializationActions'
-    }
-    log_size = len(log_methods)
-    # log_added = set()
-
-    log_delay = 40    # Might be a few secs before logs are available for reads.
-    log_window = 20   # Time window length to read logs from.
     resources = [f'projects/{self.project}']
-    methods_filter = ' OR '.join(f'"{method}"' for method in log_methods)
-
+    log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
+                   'runBuiltinInitializationActions','awaitNameNodeSafeModeExit',
+                   'runCustomInitializationActions'}
+    filters_methods = ' OR '.join(f'"{method}"' for method in log_methods)
     filters_base = (
       f'resource.type=cloud_dataproc_cluster AND '
       f'resource.labels.cluster_name="{self.clustername()}" AND '
-      f'resource.labels.cluster_uuid="{self.cluster_uuid}" AND '
+      f'resource.labels.cluster_uuid="{self.operation.metadata.cluster_uuid}" AND '
       f'log_name="projects/{self.project}/logs/google.dataproc.agent" AND '
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
-      f' AND jsonPayload.method=({methods_filter})'
+      f' AND jsonPayload.method=({filters_methods})'
     )
-    self.log.info(f'Filters without timestamps are: {filters_base}')
+    filters = f'{filters_base} AND timestamp>="{log_start}"'
+    self.log.info(f'Filters are: {filters}')
 
-    def _calculate_progress(current_size, expected_size=log_size, full=False,
-                            max_progress=90, min_progress=min_progress):
-      """ Calculates progress bar size.
-
-      Uses the number of deduplicate logs types (methods, etc...) already logged
-      to calculate the advancement of the progress bar.
-
-      Args:
-        current_size (int): number of items already processed.
-        expected_size (int): number of items that should be processed.
-        max_progress (int): top end of the progress bar. Generally strictly less
-                            than 100 to give room for non-displayed logs/tasks.
-        min_progress (int): bottom end of the progress bar. Generally the value
-                            of the original progress. The bar should not display
-                            an advancement below this value.
-
-      Returns:
-        (int) Length of the progress bar between max_progress and min_progress.
-        Can not be more than 100 because a full loaded bar is 100%.
-      """
-      if full:
-        return 100
-      max_progress = min(max_progress, 100 - min_progress)
-      return current_size * floor(max_progress/expected_size) + min_progress
-
-    # This loop gets broken when the cluster creation operation finishes either
-    # with a success or failure.
-    origin_utc = start_utc = end_utc = done_utc = None
-    progress = min_progress
-    while not done_utc:
+    operation_done = False
+    while not operation_done:
       try:
-        if self.operation.done():
-          done_utc = dt.utcnow()
+        operation_done = self.operation.done()
       except exceptions.GoogleAPICallError as e:
         self.log.warning(f'Error operation.done(): {e.message}')
 
-      origin_utc = done_utc or dt.utcnow()
-      start_utc = end_utc or (origin_utc - timedelta(0, log_delay+log_window))
-      end_utc = done_utc or (start_utc + timedelta(0, log_window))
-      end_logs = end_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-      start_logs = start_utc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+      if not operation_done:
+        time.sleep(10)
 
-      filters = (f'{filters_base} AND '
-                 f'timestamp>="{start_logs}" AND '
-                 f'timestamp<="{end_logs}"')
-
-      # Displays logs based on the methods and keep track of the methods.
-      # The progress bar advances only for new method but displays all logs.
       try:
-        self.log.info(f'Trying to get logs from: {start_logs} to: {end_logs}')
-        for entry in logging_client.list_log_entries(resources, filter_=filters):
-          json_payload = MessageToDict(entry.json_payload)
-          payload_method = json_payload.get('method')
-          payload_message = f'{payload_method}: {json_payload.get("message")}'
-          self.log_added.add(payload_method)
-          progress = _calculate_progress(current_size=len(self.log_added),
-                                         full=(done_utc is not None))
-          self.log.info(f'progress: {progress}, '
-                        f'payload_message: {payload_message}')
-          await yield_({'progress': progress, 'message': payload_message})
+        self.log.info(f'At progress {progress}, fetching logs if any.')
+        entries = logging_client.list_log_entries(resources, filter_=filters)
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
         await yield_({'progress': progress, 'message': e.message})
         continue
@@ -430,8 +394,18 @@ class DataprocSpawner(Spawner):
         await yield_({'progress': progress, 'message': 'ValueError'})
         continue
 
-      if not done_utc:
-        time.sleep(log_window)
+      # Reads all the filtered logs since the beginning of spawns and filters
+      # out the ones that were processed in a previous `while` loop. This method
+      # simplifies code vs using a loop with sequential timestamps. The latter
+      # would be useful is `entries` was a big list which is not the case here.
+      for entry in entries:
+        if entry.insert_id not in self.log_shown:
+          payload = MessageToDict(entry.json_payload)
+          message = f'{payload.get("method")}: {payload.get("message")}'
+          progress += math.ceil((90 - progress) / 4)
+          self.log.info(f'progress: {progress}, 'f'message: {message}')
+          await yield_({'progress': progress, 'message': message})
+          self.log_shown.add(entry.insert_id)
 
     if self.operation.metadata.status.inner_state == 'FAILED':
       await yield_({

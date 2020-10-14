@@ -62,7 +62,7 @@ class TestDataprocSpawner:
     # Force no existing clusters to bypass the check in the spawner
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     # Test that the traitlets work
@@ -79,7 +79,7 @@ class TestDataprocSpawner:
 
     assert spawner.cluster_definition['cluster_name'] == 'dataprochub-fake'
     assert (spawner.cluster_definition['config']['gce_cluster_config']['zone_uri']) == (
-        'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}')
+        f'https://www.googleapis.com/compute/v1/projects/{spawner.project}/zones/{spawner.zone}')
 
     env = json.loads(spawner.cluster_definition['config']['software_config']
         ['properties']['dataproc:jupyter.hub.env'])
