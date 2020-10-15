@@ -15,7 +15,6 @@ config:
     minCpuPlatform: AUTOMATIC
     diskConfig:
       bootDiskSizeGb: 1000
-      keySomething: https://all-sort.of/lowerUpper/including-Dash/disk.1.2_numbers
   softwareConfig:
     optionalComponents:
     - 1

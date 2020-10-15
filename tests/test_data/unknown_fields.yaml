@@ -1,0 +1,133 @@
+clusterName: 'overwrite'
+# Bad field in top level config should be removed
+unknownFieldTopLevel: 'foo'
+labels:
+  my_label_1: val1
+  my_label_2: val2
+config:
+  # Bad field and children in nested config should be removed
+  unknownFieldConfigLevel:
+    nestedUnknownField: 'remove me'
+  configBucket: dataproc-staging-us-east1-935823299908-gvss3h0b
+  endpointConfig:
+    enableHttpPortAccess: true
+  gceClusterConfig:
+    metadata:
+      VmDnsSetting: ZonalPreferred
+      example_download_path: https://downloads.example.io/protected/files/my-enterprise-trial.tar.gz
+      example_hive_catalog_host: on-prem-a-m.us-west1-a.c.my-demo.internal
+      example_root_ufs_uri: hdfs://on-prem-a-m.us-west1-a.c.my-demo.internal:8020
+      example_site_properties: example.user.file.passive.cache.enabled=false;example.user.ufs.block.read.location.policy=example.client.block.policy.DeterministicHashPolicy;example.user.ufs.block.read.location.policy.deterministic.hash.shards=3;example.master.mount.table.root.option.example.underfs.hdfs.remote=true
+      example_ssd_capacity_usage: '60'
+      example_sync_list: /tmp
+    serviceAccountScopes:
+    - https://www.googleapis.com/auth/bigquery
+    - https://www.googleapis.com/auth/bigtable.admin.table
+    - https://www.googleapis.com/auth/bigtable.data
+    - https://www.googleapis.com/auth/cloud.useraccounts.readonly
+    - https://www.googleapis.com/auth/devstorage.full_control
+    - https://www.googleapis.com/auth/devstorage.read_write
+    - https://www.googleapis.com/auth/logging.write
+    subnetworkUri: https://www.googleapis.com/compute/v1/projects/my-demo/regions/us-east1/subnetworks/subnet1-b
+    zoneUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d
+    reservationAffinity:
+      # Bad value in an enum field: entire field should be removed
+      consume_reservation_type: BAD_ENUM_VALUE
+      key: "reservation-key"
+  initializationActions:
+  - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-dataproc.sh
+    # Unknown field in a repeated proto should be removed
+    unknownField: 10
+  - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-presto-conf.sh
+    executionTimeout:
+      seconds: 600
+      nanos: 0
+  masterConfig:
+    diskConfig:
+      bootDiskSizeGb: 1000
+      bootDiskType: pd-standard
+    imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb10-20200409-000000-rc01
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d/machineTypes/n1-highmem-16
+    minCpuPlatform: AUTOMATIC
+    numInstances: 1
+  softwareConfig:
+    imageVersion: 1.4.27-debian10
+    # Bad enums in a repeated field: only bad values should be removed
+    optionalComponents:
+    - JUPYTER
+    - ZEPPELIN
+    - UNKNOWN_COMPONENT_1
+    - UNKNOWN_COMPONENT_2
+    - ANACONDA
+    - PRESTO
+    - UNKNOWN_COMPONENT_3
+    properties:
+      capacity-scheduler:yarn.scheduler.capacity.root.default.ordering-policy: fair
+      core:fs.gs.block.size: '134217728'
+      core:fs.gs.metadata.cache.enable: 'false'
+      core:hadoop.ssl.enabled.protocols: TLSv1,TLSv1.1,TLSv1.2
+      distcp:mapreduce.map.java.opts: -Xmx768m
+      distcp:mapreduce.map.memory.mb: '1024'
+      distcp:mapreduce.reduce.java.opts: -Xmx768m
+      distcp:mapreduce.reduce.memory.mb: '1024'
+      hdfs:dfs.datanode.address: 0.0.0.0:9866
+      hdfs:dfs.datanode.http.address: 0.0.0.0:9864
+      hdfs:dfs.datanode.https.address: 0.0.0.0:9865
+      hdfs:dfs.datanode.ipc.address: 0.0.0.0:9867
+      hdfs:dfs.namenode.datanode.registration.ip-hostname-check: 'false'
+      hdfs:dfs.namenode.handler.count: '60'
+      hdfs:dfs.namenode.http-address: 0.0.0.0:9870
+      hdfs:dfs.namenode.https-address: 0.0.0.0:9871
+      hdfs:dfs.namenode.lifeline.rpc-address: cloud-compute-b-m:8050
+      hdfs:dfs.namenode.secondary.http-address: 0.0.0.0:9868
+      hdfs:dfs.namenode.secondary.https-address: 0.0.0.0:9869
+      hdfs:dfs.namenode.service.handler.count: '30'
+      hdfs:dfs.namenode.servicerpc-address: cloud-compute-b-m:8051
+      mapred-env:HADOOP_JOB_HISTORYSERVER_HEAPSIZE: '4000'
+      mapred:mapreduce.job.maps: '237'
+      mapred:mapreduce.job.reduce.slowstart.completedmaps: '0.95'
+      mapred:mapreduce.job.reduces: '79'
+      mapred:mapreduce.map.cpu.vcores: '1'
+      mapred:mapreduce.map.java.opts: -Xmx4096m
+      mapred:mapreduce.map.memory.mb: '5120'
+      mapred:mapreduce.reduce.cpu.vcores: '1'
+      mapred:mapreduce.reduce.java.opts: -Xmx4096m
+      mapred:mapreduce.reduce.memory.mb: '5120'
+      mapred:mapreduce.task.io.sort.mb: '256'
+      mapred:yarn.app.mapreduce.am.command-opts: -Xmx4096m
+      mapred:yarn.app.mapreduce.am.resource.cpu-vcores: '1'
+      mapred:yarn.app.mapreduce.am.resource.mb: '5120'
+      presto-catalog:onprem.connector.name: hive-hadoop2
+      presto-catalog:onprem.hive.config.resources: /opt/example/conf/presto/core-site.xml
+      presto-catalog:onprem.hive.force-local-scheduling: 'false'
+      presto-catalog:onprem.hive.metastore.uri: thrift://on-prem-a-m.us-west1-a.c.my-demo.internal:9083
+      presto-jvm:MaxHeapSize: 85196m
+      presto:query.max-memory-per-node: 51117MB
+      presto:query.max-total-memory-per-node: 51117MB
+      spark-env:SPARK_DAEMON_MEMORY: 4000m
+      spark:spark.driver.maxResultSize: 13312m
+      spark:spark.driver.memory: 26624m
+      spark:spark.executor.cores: '8'
+      spark:spark.executor.instances: '2'
+      spark:spark.executor.memory: 37237m
+      spark:spark.executorEnv.OPENBLAS_NUM_THREADS: '1'
+      spark:spark.scheduler.mode: FAIR
+      spark:spark.sql.cbo.enabled: 'true'
+      spark:spark.yarn.am.memory: 640m
+      yarn-env:YARN_NODEMANAGER_HEAPSIZE: '4000'
+      yarn-env:YARN_RESOURCEMANAGER_HEAPSIZE: '4000'
+      yarn-env:YARN_TIMELINESERVER_HEAPSIZE: '4000'
+      yarn:yarn.nodemanager.resource.memory-mb: '81920'
+      yarn:yarn.resourcemanager.nodemanager-graceful-decommission-timeout-secs: '86400'
+      yarn:yarn.scheduler.maximum-allocation-mb: '81920'
+      yarn:yarn.scheduler.minimum-allocation-mb: '1024'
+  workerConfig:
+    diskConfig:
+      bootDiskSizeGb: 1000
+      bootDiskType: pd-standard
+      numLocalSsds: 2
+    imageUri: https://www.googleapis.com/compute/v1/projects/cloud-dataproc/global/images/dataproc-1-4-deb10-20200409-000000-rc01
+    machineTypeUri: https://www.googleapis.com/compute/v1/projects/my-demo/zones/us-east1-d/machineTypes/n1-highmem-16
+    minCpuPlatform: AUTOMATIC
+    numInstances: 5
+

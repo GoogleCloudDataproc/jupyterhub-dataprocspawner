@@ -18,6 +18,7 @@ import re
 import os
 import time
 import random
+import proto
 import yaml
 import math
 import asyncio
@@ -26,9 +27,11 @@ from datetime import datetime as dt
 from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
 from google.cloud import storage, logging_v2
-from google.cloud.dataproc_v1beta2 import ClusterControllerClient, ClusterStatus
-from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
+from google.cloud.dataproc_v1beta2 import (
+    ClusterControllerClient, Cluster, ClusterStatus)
 from google.cloud.dataproc_v1beta2.types.shared import Component
+
+from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
 from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
@@ -56,6 +59,94 @@ def url_path_join(*pieces):
   if result == '//':
     result = '/'
   return result
+
+def _validate_proto(data, proto_cls):
+  """Utility method to strip unknown fields and enum values for proto parsing.
+
+  This method recursively calls _validate_proto_field for each field of the
+  proto, deleting unknown or invalid fields as it goes.
+
+  Args:
+  - dict data: representation of a proto as a (possibly nested) dict
+  - proto.message.MessageMeta proto_cls: class of the proto to which the data
+                                         should be parsed
+  Returns:
+    [String]: List of warnings of fields removed
+  """
+  if not isinstance(proto_cls, proto.message.MessageMeta):
+    return
+  if not data or not isinstance(data, dict):
+    return
+
+  meta = proto_cls._meta # pylint: disable=protected-access
+  warnings = []
+  # Iterate over copy of data to avoid concurrent iteration and modification
+  for field in data.copy():
+    if field in meta.fields:
+      field_valid, new_warnings = _validate_proto_field(data[field], meta.fields[field])
+      warnings.extend(new_warnings)
+      if not field_valid:
+        warnings.append(f'Removing unknown/bad value {data[field]} for field {field}.')
+        del data[field]
+
+    else:
+      warnings.append(f'Removing unknown field {field} for class {proto_cls}')
+      del data[field]
+
+  return warnings
+
+def _validate_proto_field(data, field_descriptor):
+  """Helper function for validating a single field of a proto.
+
+  *Only* validates message and enum fields.
+  Recursively calls _validate_proto for message fields.
+
+  Args:
+    - Any data: representation of a single proto field. This could be
+                any valid type.
+    - proto.fields.Field field_descriptor: Field descriptor for a single
+                                           proto field.
+  Returns:
+    (Bool is_valid, [String] warnings):
+      is_valid: True if field is valid after this method returns. False if
+                field is still invalid after this method returns. If False,
+                the caller should either fail or remove offending field.
+      warnings: List of warnings of fields removed."""
+  if not data:
+    return True, []
+  fd = field_descriptor
+  warnings = []
+
+  if fd.message and isinstance(fd.message, proto.message.MessageMeta):
+    # Don't validate map fields
+    if fd.message._meta.options and fd.message._meta.options.map_entry: # pylint: disable=protected-access
+      return True, warnings
+
+    to_validate = [data] if not fd.repeated else data
+    for entry in to_validate:
+      warnings.extend(_validate_proto(entry, fd.message))
+    return True, warnings
+
+  elif fd.enum:
+    if fd.repeated:
+      # For repeated enum fields, filter out unknown values ourselves
+      to_del = []
+      for i, val in enumerate(data):
+        if val not in fd.enum.__members__:
+          warnings.append(f'Removing unknown/bad value {val} for field {fd.name}.')
+          to_del.append(i)
+      # Delete from the back so we don't mess up later indices
+      to_del.reverse()
+      for i in to_del:
+        del data[i]
+      return True, warnings
+
+    else:
+      # For non-repeated enum fields, let the caller strip the invalid value
+      return (data in fd.enum.__members__, warnings)
+
+  # Other types we don't attempt to validate
+  return True, warnings
 
 class DataprocSpawner(Spawner):
   """Spawner for Dataproc clusters.
@@ -582,6 +673,7 @@ class DataprocSpawner(Spawner):
     """
     config_string = self.read_gcs_file(file_path)
     config_dict = yaml.load(config_string, Loader=yaml.FullLoader)
+    config_dict.setdefault('config', {})
 
     # Properties and Metadata might have some values that needs to remain with
     # CamelCase so we remove the properties/metadata from the conversion from
@@ -1035,6 +1127,11 @@ class DataprocSpawner(Spawner):
       # Reads the cluster config from yaml
       self.log.info(f'Reading config file at {gcs_config_file}')
       cluster_data = self.get_cluster_definition(gcs_config_file)
+      # Validate and strip unknown fields
+      # TODO(dingj) expose warnings somehow
+      warnings = _validate_proto(cluster_data, Cluster)
+      self.log.debug(f'Cluster config after cleaning was {cluster_data}')
+      self.log.info(f'Warnings from proto field validation were {warnings}')
 
       # Defines default values if some key is not exists
       cluster_data['config'].setdefault('gce_cluster_config', {})
@@ -1179,15 +1276,6 @@ class DataprocSpawner(Spawner):
              ['accelerator_type_uri']) = (
                  acc_val['accelerator_type_uri'].split('/')[-1]
              )
-
-    # Temporarily disable setting preemptibility field until Dataproc client
-    # libraries support the enum value
-    if cluster_data['config'].setdefault('master_config', {}):
-      cluster_data['config']['master_config'].pop('preemptibility', None)
-    if cluster_data['config'].setdefault('worker_config', {}):
-      cluster_data['config']['worker_config'].pop('preemptibility', None)
-    if cluster_data['config'].setdefault('secondary_worker_config', {}):
-      cluster_data['config']['secondary_worker_config'].pop('preemptibility', None)
 
     # Strip cluster-specific namenode properties
     if (cluster_data['config'].setdefault('software_config', {}) and
