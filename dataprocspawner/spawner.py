@@ -317,14 +317,12 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
-    self.filters_base = ''
 
     if mock:
       # Mock the API
       self.dataproc_client = kwargs.get('dataproc')
       self.gcs_client = kwargs.get('gcs')
       self.logging_client = kwargs.get('logging')
-      self.filters_base = 'mock'
     else:
       self.client_transport = (
           ClusterControllerGrpcTransport(
@@ -458,7 +456,7 @@ class DataprocSpawner(Spawner):
                    'runCustomInitializationActions'}
     filters_methods = ' OR '.join(f'"{method}"' for method in log_methods)
 
-    self.filters_base = (
+    filters_base = (
       f'resource.type=cloud_dataproc_cluster AND '
       f'resource.labels.cluster_name="{self.clustername()}" AND '
       f'resource.labels.cluster_uuid="{self.operation.metadata.cluster_uuid}" AND '
@@ -466,7 +464,7 @@ class DataprocSpawner(Spawner):
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
       f' AND jsonPayload.method=({filters_methods})'
     )
-    filters = f'{self.filters_base} AND timestamp>="{log_start}"'
+    filters = f'{filters_base} AND timestamp>="{log_start}"'
     self.log.info(f'Filters are: {filters}')
 
     log_shown = set()
