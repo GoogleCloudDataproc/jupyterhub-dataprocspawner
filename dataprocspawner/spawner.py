@@ -20,6 +20,7 @@ import time
 import random
 import yaml
 import math
+import asyncio
 from datetime import datetime as dt
 
 from google.protobuf.json_format import MessageToDict
@@ -225,12 +226,14 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
-    self.log_shown = set()
+    self.filters_base = ''
 
     if mock:
       # Mock the API
       self.dataproc_client = kwargs.get('dataproc')
       self.gcs_client = kwargs.get('gcs')
+      self.logging_client = kwargs.get('logging')
+      self.filters_base = 'mock'
     else:
       self.client_transport = (
           ClusterControllerGrpcTransport(
@@ -239,6 +242,7 @@ class DataprocSpawner(Spawner):
           client_options={'api_endpoint':
                           f'{self.region}-dataproc.googleapis.com:443'})
       self.gcs_client = storage.Client(project=self.project)
+      self.logging_client = logging_v2.LoggingServiceV2Client()
 
     if self.gcs_notebooks:
       if self.gcs_notebooks.startswith('gs://'):
@@ -325,8 +329,8 @@ class DataprocSpawner(Spawner):
 
     if not operation_done:
       await yield_({'progress': 0, 'message': 'Server requested'})
-      html_message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
-      await yield_({'progress': 5, 'html_message': html_message})
+      message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
+      await yield_({'progress': 5, 'message': message})
 
     async with aclosing(self.progress()) as progress:
       async for event in progress:
@@ -356,14 +360,14 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(msg_existing)
 
     progress = 5
-    logging_client = logging_v2.LoggingServiceV2Client()
     resources = [f'projects/{self.project}']
     log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
                    'runBuiltinInitializationActions','awaitNameNodeSafeModeExit',
                    'runCustomInitializationActions'}
     filters_methods = ' OR '.join(f'"{method}"' for method in log_methods)
-    filters_base = (
+
+    self.filters_base = (
       f'resource.type=cloud_dataproc_cluster AND '
       f'resource.labels.cluster_name="{self.clustername()}" AND '
       f'resource.labels.cluster_uuid="{self.operation.metadata.cluster_uuid}" AND '
@@ -371,9 +375,10 @@ class DataprocSpawner(Spawner):
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
       f' AND jsonPayload.method=({filters_methods})'
     )
-    filters = f'{filters_base} AND timestamp>="{log_start}"'
+    filters = f'{self.filters_base} AND timestamp>="{log_start}"'
     self.log.info(f'Filters are: {filters}')
 
+    log_shown = set()
     operation_done = False
     while not operation_done:
       try:
@@ -382,11 +387,15 @@ class DataprocSpawner(Spawner):
         self.log.warning(f'Error operation.done(): {e.message}')
 
       if not operation_done:
-        time.sleep(10)
+        await asyncio.sleep(10)
+      else:
+        message = 'operation.done()'
+        self.log.info(message)
+        await yield_({'progress': progress, 'message': message})
 
       try:
         self.log.info(f'At progress {progress}, fetching logs if any.')
-        entries = logging_client.list_log_entries(resources, filter_=filters)
+        entries = self.logging_client.list_log_entries(resources, filter_=filters)
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
         await yield_({'progress': progress, 'message': e.message})
         continue
@@ -397,15 +406,15 @@ class DataprocSpawner(Spawner):
       # Reads all the filtered logs since the beginning of spawns and filters
       # out the ones that were processed in a previous `while` loop. This method
       # simplifies code vs using a loop with sequential timestamps. The latter
-      # would be useful is `entries` was a big list which is not the case here.
+      # would be useful if `entries` was a big list which is not the case here.
       for entry in entries:
-        if entry.insert_id not in self.log_shown:
+        if entry.insert_id not in log_shown:
           payload = MessageToDict(entry.json_payload)
           message = f'{payload.get("method")}: {payload.get("message")}'
           progress += math.ceil((90 - progress) / 4)
           self.log.info(f'progress: {progress}, 'f'message: {message}')
           await yield_({'progress': progress, 'message': message})
-          self.log_shown.add(entry.insert_id)
+          log_shown.add(entry.insert_id)
 
     if self.operation.metadata.status.inner_state == 'FAILED':
       await yield_({

@@ -16,21 +16,47 @@
 
 Unit tests for methods within DataprocSpawner (start, stop, and poll).
 """
-from collections import namedtuple
-from dataprocspawner import DataprocSpawner
-from google.auth.credentials import AnonymousCredentials
-from google.cloud.dataproc_v1beta2 import ClusterControllerClient
-from google.cloud.dataproc_v1beta2 import Cluster
-from google.cloud.dataproc_v1beta2 import ClusterStatus
-from google.cloud.dataproc_v1beta2.types.shared import Component
-from google.longrunning import operations_pb2
-from google.cloud import storage
-from google.cloud.storage.blob import Blob
-from jupyterhub.objects import Hub, Server
 from unittest import mock
 import json
 import pytest
+import math
+import threading
+from dataprocspawner import DataprocSpawner
+from google.auth.credentials import AnonymousCredentials
+from google.cloud.dataproc_v1beta2 import (
+  ClusterControllerClient, Cluster, ClusterStatus)
+from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.longrunning import operations_pb2
+from google.cloud import storage, logging_v2
+from google.cloud.logging_v2.types import LogEntry
+from google.cloud.storage.blob import Blob
+from google.protobuf.json_format import ParseDict
+from google.protobuf.struct_pb2 import Struct
+from jupyterhub.objects import Hub, Server
 
+class MockStatus(object):
+  def __init__(self, inner_state):
+    self.inner_state = inner_state
+
+class MockMetadata(object):
+  def __init__(self, cluster_uuid, inner_state=None):
+    self.cluster_uuid = cluster_uuid
+    self.status = MockStatus(inner_state=inner_state)
+
+class MockOperation(object):
+  def __init__(self, name, cluster_uuid, timeout=2.0, op_done=False):
+    self.name = name
+    self.op_done = op_done
+    self.metadata = MockMetadata(cluster_uuid)
+    self.timer = threading.Timer(timeout, self.set_delay_done)
+    self.timer.start()
+  
+  def done(self):
+    return self.op_done
+  
+  def set_delay_done(self):
+    self.op_done = True
+    
 class MockUser(mock.Mock):
   name = 'fake'
   server = Server()
@@ -194,7 +220,6 @@ class TestDataprocSpawner:
 
     spawner.project = 'test-poll-no-cluster'
     assert spawner.project == 'test-poll-no-cluster'
-
     assert await spawner.poll() == 1
 
   @pytest.mark.asyncio
@@ -202,7 +227,7 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = 'non-domain-scoped'
@@ -748,7 +773,7 @@ class TestDataprocSpawner:
     assert config_built['config']['secondary_worker_config']['machine_type_uri'] == 'n1-standard-4'
     assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
 
-  def test_image_version_supports_component_gateway(self, monkeypatch):
+  def test_image_version_supports_component_gateway(self):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -772,3 +797,52 @@ class TestDataprocSpawner:
     assert spawner._validate_image_version_supports_component_gateway('2.0.0-RC1-preview') is True
     assert spawner._validate_image_version_supports_component_gateway('weird-unexpected-version-124.3.v2.2020-02-15') is True
     assert spawner._validate_image_version_supports_component_gateway('1.3.weird-version-again') is True
+
+  @pytest.mark.asyncio
+  async def test_progress(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_logging_client = mock.create_autospec(
+        logging_v2.LoggingServiceV2Client(credentials=fake_creds))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
+                              _mock=True, logging=mock_logging_client,
+                              gcs_notebooks=self.gcs_notebooks)
+    spawner.project = "test-progress"
+
+    async def collect(ait):
+      items = []
+      async for value in ait:
+        items.append(value)
+      return items
+  
+    def create_logs():
+      entries = []
+      for i in range(5):
+        e = LogEntry(
+          insert_id=f'entry_{i}',
+          json_payload=ParseDict({'method':'method', 'message':f'message_{i}'}, Struct())
+        )
+        entries.append(e)
+      return entries
+    
+    def create_expected():
+      progress = 5
+      expected = []
+      i = 0
+      for e in create_logs():
+        progress += math.ceil((90 - progress) / 4)
+        expected.append({'progress': progress,'message': f'method: message_{i}'})
+        i += 1
+      expected.append({'message': 'operation.done()', 'progress': 71})
+      return expected
+
+    def test_list_log_entries(*args, **kwargs):
+      return create_logs()
+
+    op = MockOperation('op1', 'cluster1-op1')
+
+    monkeypatch.setattr(mock_logging_client, 'list_log_entries', test_list_log_entries)
+    monkeypatch.setattr(spawner, 'operation', op)
+
+    _, _ = await spawner.start()
+    assert await collect(spawner.progress()) == create_expected()
