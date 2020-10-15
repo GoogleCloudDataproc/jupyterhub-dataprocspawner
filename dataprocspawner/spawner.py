@@ -18,22 +18,27 @@ import re
 import os
 import time
 import random
-
 import proto
 import yaml
+import math
+import asyncio
+from datetime import datetime as dt
 
+from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
-from google.cloud import storage
-from google.cloud.dataproc_v1beta2 import Cluster
-from google.cloud.dataproc_v1beta2 import ClusterControllerClient
-from google.cloud.dataproc_v1beta2 import ClusterStatus
-from google.cloud.dataproc_v1beta2 import Component
+from google.cloud import storage, logging_v2
+from google.cloud.dataproc_v1beta2 import (
+    ClusterControllerClient, Cluster, ClusterStatus)
+from google.cloud.dataproc_v1beta2.types.shared import Component
+
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
 from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
-from .customize_cluster import get_base_cluster_html_form
-from .customize_cluster import get_custom_cluster_html_form
+from .customize_cluster import (get_base_cluster_html_form,
+                                get_custom_cluster_html_form)
+
+from async_generator import async_generator, yield_, aclosing
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -47,16 +52,13 @@ def url_path_join(*pieces):
   final = pieces[-1].endswith('/')
   stripped = [s.strip('/') for s in pieces]
   result = '/'.join(s for s in stripped if s)
-
   if initial:
     result = '/' + result
   if final:
     result = result + '/'
   if result == '//':
     result = '/'
-
   return result
-
 
 def _validate_proto(data, proto_cls):
   """Utility method to strip unknown fields and enum values for proto parsing.
@@ -92,7 +94,6 @@ def _validate_proto(data, proto_cls):
       del data[field]
 
   return warnings
-
 
 def _validate_proto_field(data, field_descriptor):
   """Helper function for validating a single field of a proto.
@@ -146,7 +147,6 @@ def _validate_proto_field(data, field_descriptor):
 
   # Other types we don't attempt to validate
   return True, warnings
-
 
 class DataprocSpawner(Spawner):
   """Spawner for Dataproc clusters.
@@ -315,10 +315,14 @@ class DataprocSpawner(Spawner):
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
 
+    # https://googleapis.dev/python/google-api-core/latest/operation.html
+    self.operation = None
+
     if mock:
       # Mock the API
       self.dataproc_client = kwargs.get('dataproc')
       self.gcs_client = kwargs.get('gcs')
+      self.logging_client = kwargs.get('logging')
     else:
       self.client_transport = (
           ClusterControllerGrpcTransport(
@@ -327,6 +331,7 @@ class DataprocSpawner(Spawner):
           client_options={'api_endpoint':
                           f'{self.region}-dataproc.googleapis.com:443'})
       self.gcs_client = storage.Client(project=self.project)
+      self.logging_client = logging_v2.LoggingServiceV2Client()
 
     if self.gcs_notebooks:
       if self.gcs_notebooks.startswith('gs://'):
@@ -334,10 +339,9 @@ class DataprocSpawner(Spawner):
 
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
 
-
-################################################################################
-# Required functions
-################################################################################
+  ##############################################################################
+  # Required functions
+  ##############################################################################
   async def start(self):
     """ Creates a Dataproc cluster.
     If a cluster with the same name already exists, logs a warning and returns
@@ -351,16 +355,18 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
 
     elif await self.exists(self.clustername()):
-      self.log.warning(f'Cluster named {self.clustername()} already exists')
+      self.log.warning(
+        (f'Cluster named {self.clustername()} already exists. If this is not a '
+        'server that you spawned before, the next page will fail.'))
 
     else:
       if self.gcs_user_folder:
         self.create_example_notebooks()
-      await self.create_cluster()
+      self.operation = await self.create_cluster()
 
       start_notebook_cmd = self.cmd + self.get_args()
       start_notebook_cmd = ' '.join(start_notebook_cmd)
-      self.log.info(start_notebook_cmd)
+      self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
 
     return (self.get_dataproc_master_fqdn(), self.port)
 
@@ -378,9 +384,10 @@ class DataprocSpawner(Spawner):
 
   async def poll(self):
     status = await self.get_cluster_status(self.clustername())
-    if status is None or status in (ClusterStatus.State.ERROR,
-                                    ClusterStatus.State.DELETING,
+    if status is None or status in (ClusterStatus.State.DELETING,
                                     ClusterStatus.State.UNKNOWN):
+      return 1
+    elif status == ClusterStatus.State.ERROR:
       return 1
     elif status == ClusterStatus.State.CREATING:
       self.log.info(f'{self.clustername()} is creating')
@@ -389,9 +396,124 @@ class DataprocSpawner(Spawner):
       self.log.info(f'{self.clustername()} is up and running')
       return None
 
-################################################################################
-# User form functions
-################################################################################
+  @async_generator
+  async def _generate_progress(self):
+    """Private wrapper of progress generator
+
+    This method is always an async generator and will always yield at least one event.
+    """
+    if not self._spawn_pending or not self.operation:
+      self.log.warning(
+          "Spawn not pending, can't generate progress for %s", self._log_name)
+      return
+
+    operation_id = self.operation.operation.name.split('/')[-1]
+    cluster_uuid = self.operation.metadata.cluster_uuid
+    operation_done = False
+
+    try:
+      operation_done = self.operation.done()
+    except exceptions.GoogleAPICallError as e:
+      self.log.warning(f'Error operation.done(): {e.message}')
+
+    if not operation_done:
+      await yield_({'progress': 0, 'message': 'Server requested'})
+      message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
+      await yield_({'progress': 5, 'message': message})
+
+    async with aclosing(self.progress()) as progress:
+      async for event in progress:
+        await yield_(event)
+
+  @async_generator
+  async def progress(self):
+    """ Loads bars progressively and displays cluster logs.
+
+    Uses Cloud Logging method names to define a list of logs to display on the
+    progress page. Those methods frames how many steps the progress bar takes
+    before the cluster creation operation is done.
+
+    If the operation is succesful, the page redirects to the notebook as usual
+    with JupyterHub.
+
+    If the operation failes, the progress bar is red and the user remains on the
+    page. Error logs are displayed on the page.
+    """
+    if not self.operation:
+      msg_existing = (
+        'Trying to load progress but no cluster being created. One reason '
+         f'might be that a cluster named {self.clustername()} already exists '
+         'and it was not spawned from this Dataproc Hub instance.')
+
+      await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
+      raise RuntimeError(msg_existing)
+
+    progress = 5
+    resources = [f'projects/{self.project}']
+    log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
+                   'runBuiltinInitializationActions','awaitNameNodeSafeModeExit',
+                   'runCustomInitializationActions'}
+    filters_methods = ' OR '.join(f'"{method}"' for method in log_methods)
+
+    filters_base = (
+      f'resource.type=cloud_dataproc_cluster AND '
+      f'resource.labels.cluster_name="{self.clustername()}" AND '
+      f'resource.labels.cluster_uuid="{self.operation.metadata.cluster_uuid}" AND '
+      f'log_name="projects/{self.project}/logs/google.dataproc.agent" AND '
+      f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
+      f' AND jsonPayload.method=({filters_methods})'
+    )
+    filters = f'{filters_base} AND timestamp>="{log_start}"'
+    self.log.info(f'Filters are: {filters}')
+
+    log_shown = set()
+    operation_done = False
+    while not operation_done:
+      try:
+        operation_done = self.operation.done()
+      except exceptions.GoogleAPICallError as e:
+        self.log.warning(f'Error operation.done(): {e.message}')
+
+      if not operation_done:
+        await asyncio.sleep(10)
+      else:
+        message = 'operation.done()'
+        self.log.info(message)
+        await yield_({'progress': progress, 'message': message})
+
+      try:
+        self.log.info(f'At progress {progress}, fetching logs if any.')
+        entries = self.logging_client.list_log_entries(resources, filter_=filters)
+      except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
+        await yield_({'progress': progress, 'message': e.message})
+        continue
+      except ValueError:
+        await yield_({'progress': progress, 'message': 'ValueError'})
+        continue
+
+      # Reads all the filtered logs since the beginning of spawns and filters
+      # out the ones that were processed in a previous `while` loop. This method
+      # simplifies code vs using a loop with sequential timestamps. The latter
+      # would be useful if `entries` was a big list which is not the case here.
+      for entry in entries:
+        if entry.insert_id not in log_shown:
+          payload = MessageToDict(entry.json_payload)
+          message = f'{payload.get("method")}: {payload.get("message")}'
+          progress += math.ceil((90 - progress) / 4)
+          self.log.info(f'progress: {progress}, 'f'message: {message}')
+          await yield_({'progress': progress, 'message': message})
+          log_shown.add(entry.insert_id)
+
+    if self.operation.metadata.status.inner_state == 'FAILED':
+      await yield_({
+        'progress': 100,
+        'failed': True,
+        'message': f'FAILED: {self.operation.operation.error.message}'})
+
+  ##############################################################################
+  # User form functions
+  ##############################################################################
   def _options_form_default(self):
     """ Builds form using values passed by administrator either in Terraform
     or in the jupyterhub_config_tpl.py file.
@@ -578,7 +700,6 @@ class DataprocSpawner(Spawner):
     self.log.debug(f'config_dict is {config_dict}')
     return config_dict
 
-
   def create_example_notebooks(self):
     default_path = self.default_notebooks_gcs_path
     user_folder = self.gcs_user_folder
@@ -619,7 +740,6 @@ class DataprocSpawner(Spawner):
     self.cluster_definition = self._build_cluster_config(self.cluster_data)
 
     cluster = await self._create_cluster(self.cluster_definition)
-
     return cluster
 
   async def _create_cluster(self, cluster_data, try_count=3):

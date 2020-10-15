@@ -18,7 +18,7 @@
 PROJECT_ID=$1
 VM_NAME=$2
 CONFIGS_LOCATION=$3
-DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce4"
+DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce"
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
@@ -65,17 +65,17 @@ c.DataprocSpawner.dataproc_locations_list = "b,c"
 EOT
 
 
-gcloud --project ${PROJECT_ID} builds submit -t  ${DOCKER_IMAGE} .
+gcloud --project "${PROJECT_ID}" builds submit -t "${DOCKER_IMAGE}" .
 
-gcloud beta compute instances create-with-container ${VM_NAME} \
-  --project ${PROJECT_ID} \
-  --container-image=${DOCKER_IMAGE} \
+gcloud beta compute instances create-with-container "${VM_NAME}" \
+  --project "${PROJECT_ID}" \
+  --container-image="${DOCKER_IMAGE}" \
   --container-arg="--DataprocSpawner.project=${PROJECT_ID}" \
   --scopes=cloud-platform \
   --zone us-central1-a
 
-gcloud compute instances describe ${VM_NAME} \
-  --project ${PROJECT_ID} \
+gcloud compute instances describe "${VM_NAME}" \
+  --project "${PROJECT_ID}" \
   --zone us-central1-a \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
 
