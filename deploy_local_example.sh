@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo "This script only tests the deployment of JupyterHub but can not spawn a cluster."
 echo "Usage: ./try_local.sh PROJECT_ID CONFIGS_LOCATION USER_EMAIL."
 
 PROJECT=$1
@@ -81,4 +80,5 @@ docker run -it \
 -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json  \
 -v "$GOOGLE_APPLICATION_CREDENTIALS":/tmp/keys/application_default_credentials.json:ro \
 -e GOOGLE_CLOUD_PROJECT="${PROJECT}" \
-ain:latest
+ain:latest \
+--DataprocSpawner.project=${PROJECT}

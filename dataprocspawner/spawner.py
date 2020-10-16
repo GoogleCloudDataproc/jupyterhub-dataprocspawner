@@ -350,6 +350,9 @@ class DataprocSpawner(Spawner):
     Returns:
       (String, Int): FQDN of the master node and the port it's accessible at.
     """
+    if not self.project:
+      raise RuntimeError('You need to set a project')
+    
     if (await self.get_cluster_status(self.clustername())
         == ClusterStatus.State.DELETING):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
@@ -1119,7 +1122,7 @@ class DataprocSpawner(Spawner):
 
       # Reads values chosen by the user in the form and overwrites any existing
       # ones if relevant.
-      gcs_config_file = self.user_options['cluster_type']
+      gcs_config_file = self.user_options.get('cluster_type')
       cluster_zone = self.user_options.get('cluster_zone')
 
       # Reads the cluster config from yaml

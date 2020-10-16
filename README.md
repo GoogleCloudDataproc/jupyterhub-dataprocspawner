@@ -28,24 +28,29 @@ In order to use this library, you first need to go through the following steps:
 
 ## Installation example
 
-### Command line
+### Locally
 
-Although you can try the Dataproc Spawner image locally, you might run into networking communication problems. 
+To try is locally for development purposes. From the root folder:
 
-The quickest way to try it out is to use a test Compute Engine instance. The following takes you through the process.
+```sh
+chmod +x deploy_local_example.sh
+./deploy_local_example.sh <YOU_PROJECT_ID> <YOUR_GCS_CONFIG_LOCATIONS> <YOUR_AUTHENTICATED_EMAIL>
+```
+
+The script will start a local container image and authenticate it using your local credentials.
+
+
+Note: Although you can try the Dataproc Spawner image locally, you might run into networking communication problems. 
+
+### Google Compute Engine
+
+To try it out in the Cloud, the quickest way is to to use a test Compute Engine instance. The following takes you through the process.
 
 1. Set your working project
 
     ```bash
     PROJECT_ID=<YOUR_PROJECT_ID>
     VM_NAME=vm-spawner
-    ```
-
-1. Copy this repository locally.
-
-    ```bash
-    git clone https://github.com/GoogleCloudPlatform/dataprocspawner
-    cd dataprocspawner
     ```
 
 1. Run the example script which:
