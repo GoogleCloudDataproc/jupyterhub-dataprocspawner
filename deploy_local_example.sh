@@ -81,4 +81,4 @@ docker run -it \
 -v "$GOOGLE_APPLICATION_CREDENTIALS":/tmp/keys/application_default_credentials.json:ro \
 -e GOOGLE_CLOUD_PROJECT="${PROJECT}" \
 ain:latest \
---DataprocSpawner.project=${PROJECT}
+--DataprocSpawner.project="${PROJECT}"

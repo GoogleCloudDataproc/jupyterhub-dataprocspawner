@@ -352,7 +352,7 @@ class DataprocSpawner(Spawner):
     """
     if not self.project:
       raise RuntimeError('You need to set a project')
-    
+
     if (await self.get_cluster_status(self.clustername())
         == ClusterStatus.State.DELETING):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')

@@ -39,8 +39,7 @@ chmod +x deploy_local_example.sh
 
 The script will start a local container image and authenticate it using your local credentials.
 
-
-Note: Although you can try the Dataproc Spawner image locally, you might run into networking communication problems. 
+Note: Although you can try the Dataproc Spawner image locally, you might run into networking communication problems.
 
 ### Google Compute Engine
 
