@@ -66,9 +66,7 @@ To try it out in the Cloud, the quickest way is to to use a test Compute Engine 
 
 1. After the script finishes, you should see an IP displayed. You can use that IP to access your setup at `<IP>:8000`. You might have to wait for a few minutes until the container is deployed on the instance.
 
-
 [gcr]: https://cloud.google.com/container-registry/
-
 
 ## Troubleshooting
 
@@ -92,21 +90,20 @@ To troubleshoot
     - List the running containers with `docker ps`
     - Display container logs `docker logs -f <CONTAINER_ID>`
     - Execute code in the container `docker exec -it <CONTAINER_ID> /bin/bash`
-    - Restart the container for changes to take effect  `docker restart <CONTAINER_ID>` 
+    - Restart the container for changes to take effect  `docker restart <CONTAINER_ID>`
 
- 
 ## Notes
 
 - DataprocSpawner defaults to port 12345, the port can be set within `jupyterhub_config.py`. More info in JupyterHub's [jupyterhub_documentation].
 
-        c.Spawner.port = {port number}
+    c.Spawner.port = {port number}
 
 - The region default is ``us-central1`` for Dataproc clusters. The zone default is ``us-central1-a``. Using ``global`` is currently unsupported. To change region, pick a region and zone from this [list][locations_list] and include the following lines in ``jupyterhub_config.py``:
 
     .. code-block:: console
 
-        c.DataprocSpawner.region = '{region}'
-        c.DataprocSpawner.zone = '{zone that is within the chosen region}'
+    c.DataprocSpawner.region = '{region}'
+    c.DataprocSpawner.zone = '{zone that is within the chosen region}'
 
 [jupyterhub_documentation]: https://jupyterhub.readthedocs.io/en/stable/api/spawner.html#jupyterhub.spawner.Spawner.port
 [locations_list]: https://cloud.google.com/compute/docs/regions-zones/
@@ -117,4 +114,5 @@ To troubleshoot
 - For a Google-supported version of the Dataproc Spawner, refer to the official [Dataproc Hub documentation](https://cloud.google.com/dataproc/docs/tutorials/dataproc-hub-admins).
 
 ## Disclaimer
+
 [This is not an official Google product.](https://opensource.google.com/docs/releasing/publishing/#disclaimer)
