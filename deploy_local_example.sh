@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo "Usage: ./try_local.sh PROJECT_ID CONFIGS_LOCATION USER_EMAIL."
+echo "Usage: ./deploy_local_example.sh PROJECT_ID CONFIGS_LOCATION USER_EMAIL."
 
 PROJECT=$1
 CONFIGS_LOCATION=$2

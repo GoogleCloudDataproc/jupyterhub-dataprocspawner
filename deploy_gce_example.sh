@@ -15,10 +15,19 @@
 #
 # Usage: bash deploy_gce_example.sh <PROJECT_ID> <VM_NAME>
 
+# RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+# RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+# RUN apt-get update && apt-get install -y \
+#     apt-transport-https \
+#     ca-certificates \
+#     gnupg \
+#     google-cloud-sdk \
+#     vim
+
 PROJECT_ID=$1
 VM_NAME=$2
 CONFIGS_LOCATION=$3
-DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce"
+DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:cg"
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub

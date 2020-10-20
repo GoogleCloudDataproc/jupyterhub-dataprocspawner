@@ -41,6 +41,14 @@ from .customize_cluster import (get_base_cluster_html_form,
 
 from async_generator import async_generator, yield_, aclosing
 
+from jupyterhub import orm
+from jupyterhub.user import User
+from jupyterhub.objects import Server
+from tornado import web
+from urllib.parse import urlparse
+from tornado import gen
+from jupyterhub.utils import maybe_future
+
 def url_path_join(*pieces):
   """Join components of url into a relative url.
 
@@ -148,6 +156,45 @@ def _validate_proto_field(data, field_descriptor):
 
   # Other types we don't attempt to validate
   return True, warnings
+
+class DataprocHubUser(User):
+
+  def _init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+  @property
+  def server_url(self, server_name=''):
+    self.log.info(f'# Function user.server_url returns value {self.url}')
+    return self.url
+
+  @property
+  def url(self):
+    self.log.info(f'# Function user.url returns value {self.base_url}')
+    return self.base_url
+
+  def update_redirect_url(self, nurl):
+    """ Updates the Database with a new notebook server url.
+
+    JupyterHub uses the new url to redirect the user to their notebook server.
+
+    Args:
+      nurl (str): new URL to redirect the user after progress is done or when
+                  loading JupyterHub pages and a server exists.
+
+    Raises:
+      TODO
+    """
+    self.log.info(f'# Update redirect urls with {nurl}')
+    self.db\
+        .query(orm.Server)\
+        .filter(orm.Server.base_url.like(f'{self.server_url}%'))\
+        .update({orm.Server.base_url: nurl}, synchronize_session=False)
+    self.db\
+        .query(orm.OAuthClient)\
+        .filter(orm.OAuthClient.redirect_uri.like(f'{self.server_url}%'))\
+        .update({orm.OAuthClient.redirect_uri: nurl}, synchronize_session=False)
+    self.db.commit()
+
 
 class DataprocSpawner(Spawner):
   """Spawner for Dataproc clusters.
@@ -325,6 +372,15 @@ class DataprocSpawner(Spawner):
     self.operation = None
     self.progress_bar = 0
 
+    # Sets a user needed to overwrite the proxy behavior.
+    # self.user.settings['oauth_provider'] = None
+    # self.user.settings['authenticator'] = None
+    self.log.info(f'# self.user.settings is {self.user.settings}')
+    self.user = DataprocHubUser(orm_user=self.user.orm_user,
+                                settings=self.user.settings,
+                                db=self.user.db)
+    self.log.info(f'# self.user.server_url is {self.user.server_url}')
+
     if mock:
       # Mock the API
       self.dataproc_client = kwargs.get('dataproc')
@@ -379,6 +435,14 @@ class DataprocSpawner(Spawner):
         self.create_example_notebooks()
       self.operation = await self.create_cluster()
 
+      # Update DB with Component Gateway urls
+      # TODO(mayran): get_cluster_jupyter_endpoint returns None until we can enable Component Gateway http_ports
+      component_gateway_url = await self.get_cluster_jupyter_endpoint(self.clustername())
+      component_gateway_url = 'https://v2ge46ypsjduxfkwkldfeuehke-dot-us-central1.dataproc.googleusercontent.com/jupyter/lab/'
+      if not component_gateway_url:
+        raise RuntimeError('Cluster does not have an endpoint for Jupyter.')
+      self.user.update_redirect_url(component_gateway_url)
+
       start_notebook_cmd = self.cmd + self.get_args()
       start_notebook_cmd = ' '.join(start_notebook_cmd)
       self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
@@ -431,6 +495,8 @@ class DataprocSpawner(Spawner):
     except exceptions.GoogleAPICallError as e:
       self.log.warning(f'Error operation.done(): {e.message}')
 
+    # TODO(mayran): If page refreshed, restart at 5. Needs to keep track of progress
+    # This function runs only once when progress page loads.
     if not operation_done:
       await yield_({'progress': self.progress_bar, 'message': 'Server requested'})
       self.progress_bar = max(self.progress_bar, 5)
@@ -618,6 +684,9 @@ class DataprocSpawner(Spawner):
     """
     env = super().get_env()
 
+    # TODO(mayran): See if this is needed or can be empty or need CG url
+    env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = 'https://v2ge46ypsjduxfkwkldfeuehke-dot-us-central1.dataproc.googleusercontent.com/jupyter/lab/'
+
     # Sets in the jupyterhub_config related to ai notebook.
     if 'NEW_JUPYTERHUB_API_URL' in env:
       env['JUPYTERHUB_API_URL'] = env['NEW_JUPYTERHUB_API_URL']
@@ -757,12 +826,11 @@ class DataprocSpawner(Spawner):
 
     # Even if an admin provides a definition, ensures it is properly formed.
     self.cluster_definition = self._build_cluster_config(self.cluster_data)
-
     cluster = await self._create_cluster(self.cluster_definition)
     return cluster
 
   async def _create_cluster(self, cluster_data, try_count=3):
-    """ Method implements custom retry functionality in order to change zone before each recall """
+    """ Implements custom retry functionality in order to change zone before each recall. """
     while True:
       try:
         return self.dataproc_client.create_cluster(
@@ -801,11 +869,18 @@ class DataprocSpawner(Spawner):
       else:
         new_zone = current_zone_tmp
 
-    cluster_data['config']['gce_cluster_config']['zone_uri'] = f'https://www.googleapis.com/' \
-                                                              f'compute/v1/projects/' \
-                                                              f'{self.project}/zones/' \
-                                                              f'{new_zone}'
+    cluster_data['config']['gce_cluster_config']['zone_uri'] = (
+        'https://www.googleapis.com/compute/v1/projects/'
+        f'{self.project}/zones/{new_zone}')
     return cluster_data
+
+  async def get_cluster_jupyter_endpoint(self, clustername):
+    """ Extracts Component Gateway endpoint for Jupyter on the cluster. """
+    cluster = await self.get_cluster(clustername)
+    if cluster is not None:
+      endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
+      return cluster.config.endpoint_config.http_ports[endpoint_name]
+    return None
 
   async def get_cluster_status(self, clustername):
     cluster = await self.get_cluster(clustername)
@@ -888,8 +963,6 @@ class DataprocSpawner(Spawner):
     known to be affected by this behavior are present in the cluster config.
     If so, it changes their value from string to a Duration in YAML. Duration
     looks like {'seconds': 15, 'nanos': 0}. """
-    self.log.info('Converting durations for {data}')
-
     def to_sec(united):
       """ Converts a time string finishing by a time unit as the matching number
       of seconds. """
@@ -932,8 +1005,6 @@ class DataprocSpawner(Spawner):
           'seconds': to_sec(data['config']['lifecycle_config']['auto_delete_ttl']),
           'nanos': 0
       }
-
-    self.log.info('Converted durations are in {data}')
 
     return data.copy()
 
@@ -1153,7 +1224,8 @@ class DataprocSpawner(Spawner):
       # TODO(dingj) expose warnings somehow
       warnings = _validate_proto(cluster_data, Cluster)
       self.log.debug(f'Cluster config after cleaning was {cluster_data}')
-      self.log.info(f'Warnings from proto field validation were {warnings}')
+      if warnings:
+        self.log.info(f'Warnings from proto field validation were {warnings}')
 
       # Defines default values if some key is not exists
       cluster_data['config'].setdefault('gce_cluster_config', {})
@@ -1230,11 +1302,13 @@ class DataprocSpawner(Spawner):
     cluster_data['config']['software_config'].setdefault('properties', {})
 
     (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.args']) = self.args_str
+                 ['dataproc:jupyter.hub.args']) = self.args_str
     (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.env']) = self.env_str
+                 ['dataproc:jupyter.hub.env']) = self.env_str
+    # TODO(mayran): Understand why commenting this prevents redirect. It is needed
+    # to get the Component Gateway installed and then get the http_ports values.
     (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.enabled']) = 'true'
+                 ['dataproc:jupyter.hub.enabled']) = 'true'
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
        ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
@@ -1242,12 +1316,20 @@ class DataprocSpawner(Spawner):
     if 'image_version' not in cluster_data['config']['software_config']:
       cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
-    if (cluster_data['config']
-        .setdefault('endpoint_config', {})
-        .setdefault('enable_http_port_access', False)):
-      if not self._validate_image_version_supports_component_gateway(
-          cluster_data['config']['software_config']['image_version']):
-        cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
+    # Forces Component Gateway
+    if not self._validate_image_version_supports_component_gateway(
+        cluster_data['config']['software_config']['image_version']):
+      raise RuntimeError(f'Image version does not support Component Gateway.')
+
+    cluster_data['config']\
+        .setdefault('endpoint_config', {})\
+        .setdefault('enable_http_port_access', True)
+    # if (cluster_data['config']
+    #     .setdefault('endpoint_config', {})
+    #     .setdefault('enable_http_port_access', False)):
+    #   if not self._validate_image_version_supports_component_gateway(
+    #       cluster_data['config']['software_config']['image_version']):
+    #     cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
 
     cluster_data['config']['software_config'].setdefault('optional_components', [])
 
