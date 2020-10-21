@@ -259,6 +259,11 @@ class DataprocSpawner(Spawner):
       config=True,
       help=""" Allow users to customize their cluster. """,)
 
+  allow_random_cluster_names = Bool(
+      False,
+      config=True,
+      help=""" Allow users to randomize their cluster names. """,)
+
   default_notebooks_gcs_path = Unicode(
       '',
       config=True,
@@ -340,7 +345,10 @@ class DataprocSpawner(Spawner):
 
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
 
-    self.rand_str = self.get_rand_string(4)
+    if self.allow_random_cluster_names:
+      self.rand_str = '-' + self.get_rand_string(4)
+    else:
+      self.rand_str = ''
 
   ##############################################################################
   # Required functions
@@ -820,11 +828,7 @@ class DataprocSpawner(Spawner):
     """ JupyterHub provides a notebook per user, so the username is used to
     distinguish between clusters. """
     if cluster_name is None:
-      if self.user_options.get('rand_cluster_name'):
-        rand_str = '-' + self.rand_str
-      else:
-        rand_str = ''
-      return self.cluster_name_pattern.format(self.get_username()) + rand_str
+      return self.cluster_name_pattern.format(self.get_username()) + self.rand_str
     return cluster_name
 
   def calculate_config_value(self, key, path):
