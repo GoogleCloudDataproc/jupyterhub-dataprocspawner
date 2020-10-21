@@ -86,6 +86,11 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       html_autoscaling_policy += f'<option value="{i}">{i}</option>'
     html_autoscaling_policy += '''</select></div> '''
 
+  html_rand_cluster_name = """<div class="form-group">
+    <label for="rand_cluster_name">Randomize cluster name</label>
+    <input name="rand_cluster_name" type="checkbox"></input>
+  </div>"""
+
   html_pip_packages = """<div class="form-group">
         <label for="pip_packages">Install the following pip packages</label>
         <input name="pip_packages" class="form-control" placeholder="Example: 'pandas==0.23.0 scipy==1.1.0'"
@@ -158,6 +163,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   body = "\n".join([
       html_autoscaling_policy,
+      html_rand_cluster_name,
       html_pip_packages,
       html_condo_packages,
       html_master_type,
