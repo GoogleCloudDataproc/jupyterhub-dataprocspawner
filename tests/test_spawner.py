@@ -54,13 +54,13 @@ class MockOperation(object):
     self.metadata = MockMetadata(cluster_uuid)
     self.timer = threading.Timer(timeout, self.set_delay_done)
     self.timer.start()
-  
+
   def done(self):
     return self.op_done
-  
+
   def set_delay_done(self):
     self.op_done = True
-    
+
 class MockUser(mock.Mock):
   name = 'fake'
   server = Server()
@@ -138,7 +138,7 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = 'test-stop'
@@ -159,7 +159,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = 'test-stop-no-cluster'
@@ -219,7 +219,7 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = 'test-poll-no-cluster'
@@ -246,7 +246,7 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     spawner.project = "test:domain-scoped"
@@ -258,19 +258,19 @@ class TestDataprocSpawner:
 
   # YAML files
   # Tests Dataproc cluster configurations.
-  
+
   def test_clean_gcs_path(self, monkeypatch):
     path = "gs://bucket/config/"
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), 
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
     assert spawner._clean_gcs_path(path) == "gs://bucket/config"
     assert spawner._clean_gcs_path(path, return_gs=False) == "bucket/config"
     assert spawner._clean_gcs_path(path, return_slash=True) == "gs://bucket/config/"
-  
+
   def test_config_paths(self, monkeypatch):
     """ Checks that configuration paths are found. """
 
@@ -300,7 +300,7 @@ class TestDataprocSpawner:
           config_paths.append(b)
 
       return iter(config_paths)
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -308,7 +308,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(mock_gcs_client, "list_blobs", test_list_blobs)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -332,7 +332,7 @@ class TestDataprocSpawner:
     assert type(read_paths) == type(config_hierarchy)
     assert len(read_paths) == len(config_hierarchy)
     assert set(read_paths) == set(config_hierarchy)
-  
+
   def test_minimium_cluster_definition(self, monkeypatch):
     """ Some keys must always be present for JupyterHub to work. """
     import yaml
@@ -340,7 +340,7 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/minimum.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -348,7 +348,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -365,7 +365,7 @@ class TestDataprocSpawner:
 
     assert config_built['project_id'] == 'test-project'
     assert config_built['cluster_name'] == 'test-clustername'
-    
+
     assert config_built['config']['gce_cluster_config']['zone_uri'].split('/')[-1] == 'test-self1-b'
 
     assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
@@ -375,10 +375,10 @@ class TestDataprocSpawner:
     assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
     # assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
-  
+
   def test_cluster_definition_check_core_fields(self, monkeypatch):
-    """ Values chosen by the user through the form overwrites others. If the 
-    admin wants to prevent that behavior, they should remove form elements. 
+    """ Values chosen by the user through the form overwrites others. If the
+    admin wants to prevent that behavior, they should remove form elements.
     TODO(mayran): Check keys so users can not add custom ones. """
     import yaml
 
@@ -393,7 +393,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "get_username", test_username)
@@ -413,7 +413,7 @@ class TestDataprocSpawner:
 
     assert config_built['cluster_name'] == 'my-cluster-foo-user'
     assert config_built['project_id'] == 'test-project'
-  
+
   def test_cluster_definition_keep_core_values(self, monkeypatch):
     """ Some system's default values must remain no matter what. """
     import yaml
@@ -421,7 +421,7 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -429,7 +429,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -461,7 +461,7 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/export.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -469,7 +469,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -496,20 +496,20 @@ class TestDataprocSpawner:
     assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
-    """ Values chosen by the user through the form overwrites others. If the 
-    admin wants to prevent that behavior, they should remove form elements. 
+    """ Values chosen by the user through the form overwrites others. If the
+    admin wants to prevent that behavior, they should remove form elements.
     TODO(mayran): Check keys so users can not add custom ones. """
     import yaml
 
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
-    
+
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-       
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
 
@@ -533,7 +533,7 @@ class TestDataprocSpawner:
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/custom.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -541,7 +541,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-        
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -571,7 +571,8 @@ class TestDataprocSpawner:
           'metadata': {
             'KeyCamelCase': 'UlowUlow',
             'key_with_underscore': 'https://downloads.io/protected/files/enterprise-trial.tar.gz',
-            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234'
+            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234',
+            'session-user': MockUser.name
           },
           'zone_uri': 'https://www.googleapis.com/compute/v1/projects/test-project/zones/test-form1-a'
         },
@@ -602,14 +603,14 @@ class TestDataprocSpawner:
       }
     }
     assert expected_dict == config_built
-  
+
   def test_duration(self, monkeypatch):
     import yaml
 
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/duration.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -617,7 +618,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-        
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -638,14 +639,14 @@ class TestDataprocSpawner:
     assert config_built['config']['initialization_actions'][0]['execution_timeout']['seconds'] == 600
     # Test Duration protobuf
     assert config_built['config']['initialization_actions'][1]['execution_timeout']['seconds'] == 600
-  
+
   def test_metadata(self, monkeypatch):
     import yaml
 
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -653,7 +654,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-        
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -672,9 +673,10 @@ class TestDataprocSpawner:
 
     assert config_built['config']['gce_cluster_config']['metadata'] == {
       'm1': 'v1',
-      'm2': 'v2'
+      'm2': 'v2',
+      'session-user': MockUser.name
     }
-  
+
   def test_uris(self, monkeypatch):
     """ Test that all official URI patterns work and geo location match."""
     import yaml
@@ -682,11 +684,11 @@ class TestDataprocSpawner:
     def test_read_file_string(*args, **kwargs):
       config_string = open('./tests/test_data/basic.yaml', 'r').read()
       return config_string
-    
+
     def test_read_file_uri(*args, **kwargs):
       config_string = open('./tests/test_data/basic_uri.yaml', 'r').read()
       return config_string
-    
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -694,7 +696,7 @@ class TestDataprocSpawner:
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-        
+
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_string)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
@@ -883,7 +885,7 @@ class TestDataprocSpawner:
       async for value in ait:
         items.append(value)
       return items
-  
+
     def create_logs():
       entries = []
       for i in range(5):
@@ -893,7 +895,7 @@ class TestDataprocSpawner:
         )
         entries.append(e)
       return entries
-    
+
     def create_expected():
       progress = 5
       expected = []

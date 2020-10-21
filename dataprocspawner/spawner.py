@@ -18,6 +18,7 @@ import re
 import os
 import time
 import random
+import string
 import proto
 import yaml
 import math
@@ -209,7 +210,7 @@ class DataprocSpawner(Spawner):
   dataproc_configs = Unicode(
       config=True,
       help="""
-      Comma separated list of the dataproc configurations available in the 
+      Comma separated list of the dataproc configurations available in the
       user spawning form. Each path can be a bucket, subfolder or file and can
       include the prefix gs:// or not and the suffix / or not.
 
@@ -257,6 +258,11 @@ class DataprocSpawner(Spawner):
       False,
       config=True,
       help=""" Allow users to customize their cluster. """,)
+
+  allow_random_cluster_names = Bool(
+      False,
+      config=True,
+      help=""" Allow users to randomize their cluster names. """,)
 
   default_notebooks_gcs_path = Unicode(
       '',
@@ -338,6 +344,11 @@ class DataprocSpawner(Spawner):
         self.gcs_notebooks = self.gcs_notebooks[5:]
 
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
+
+    if self.allow_random_cluster_names:
+      self.rand_str = '-' + self.get_rand_string(4)
+    else:
+      self.rand_str = ''
 
   ##############################################################################
   # Required functions
@@ -820,7 +831,7 @@ class DataprocSpawner(Spawner):
     """ JupyterHub provides a notebook per user, so the username is used to
     distinguish between clusters. """
     if cluster_name is None:
-      return self.cluster_name_pattern.format(self.get_username())
+      return self.cluster_name_pattern.format(self.get_username()) + self.rand_str
     return cluster_name
 
   def calculate_config_value(self, key, path):
@@ -972,6 +983,11 @@ class DataprocSpawner(Spawner):
   def list_to_dict(self, rlist):
     return dict(map(lambda s: s.split(':'), rlist))
 
+  # Generate a fixed length random alphanumeric string of lower letters and digits
+  def get_rand_string(self, length):
+    letters_and_digits = string.ascii_lowercase + string.digits
+    rand_str = ''.join((random.choice(letters_and_digits) for i in range(length)))
+    return rand_str
 
 ################################################################################
 # Cluster configuration
@@ -1175,6 +1191,7 @@ class DataprocSpawner(Spawner):
         metadata['script_storage_location'] = idle_path
         metadata['max-idle'] = self.idle_checker.get('timeout', '60m')
 
+      metadata['session-user'] = self.get_username()
       cluster_data['config']['gce_cluster_config']['metadata'] = metadata
       cluster_data['config']['initialization_actions'] = (
           init_actions + cluster_data['config']['initialization_actions']
