@@ -1056,6 +1056,14 @@ class DataprocSpawner(Spawner):
       config.setdefault('worker_config', {})
       config['worker_config']['machine_type_uri'] = self.user_options.get('worker_node_type')
 
+    if self.user_options.get('master_disk_type'):
+      config.setdefault('master_config', {})
+      config['master_config']['disk_config']['boot_disk_type'] = self.user_options.get('master_disk_type')
+
+    if self.user_options.get('worker_disk_type'):
+      config.setdefault('worker_config', {})
+      config['worker_config']['disk_config']['boot_disk_type'] = self.user_options.get('worker_disk_type')
+
     if self.user_options.get('master_node_disc_size'):
       try:
         val = int(self.user_options.get('master_node_disc_size'))

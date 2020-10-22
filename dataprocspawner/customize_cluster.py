@@ -108,6 +108,14 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       html_master_type += f'''<option value="{t}">{t}</option>'''
     html_master_type += "</select></div>"
 
+  html_master_disk_type = ""
+  html_master_disk_type += """<div class="form-group">
+      <label for="master_disk_type">Master disk type</label>
+      <select class="form-control" name="master_disk_type">"""
+  html_master_disk_type += '''<option value="">pd-standard</option>
+      <option value="">pd-ssd</option>'''
+  html_master_disk_type += "</select></div>"
+
   html_master_disc = """<div class="form-group">
       <label for="master_node_disc_size">Master disk size</label>
       <input name="master_node_disc_size" class="form-control" placeholder="default"
@@ -123,6 +131,14 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     for t in node_types:
       html_worker_type += f'''<option value="{t}">{t}</option>'''
     html_worker_type += "</select></div>"
+
+  html_worker_disk_type = ""
+  html_worker_disk_type += """<div class="form-group">
+      <label for="worker_disk_type">Worker disk type</label>
+      <select class="form-control" name="worker_disk_type">"""
+  html_worker_disk_type += '''<option value="">pd-standard</option>
+      <option value="">pd-ssd</option>'''
+  html_worker_disk_type += "</select></div>"
 
   html_worker_disc = """<div class="form-group">
       <label for="worker_node_disc_size">Worker disc size</label>
@@ -161,8 +177,10 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       html_pip_packages,
       html_condo_packages,
       html_master_type,
+      html_master_disk_type,
       html_master_disc,
       html_worker_type,
+      html_worker_disk_type,
       html_worker_disc,
       html_worker_amount,
       html_custom_labels,
