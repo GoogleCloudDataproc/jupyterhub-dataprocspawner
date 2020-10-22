@@ -323,6 +323,7 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
+    self.progress_bar = 0
 
     if mock:
       # Mock the API
@@ -431,9 +432,10 @@ class DataprocSpawner(Spawner):
       self.log.warning(f'Error operation.done(): {e.message}')
 
     if not operation_done:
-      await yield_({'progress': 0, 'message': 'Server requested'})
+      await yield_({'progress': self.progress_bar, 'message': 'Server requested'})
+      self.progress_bar = max(self.progress_bar, 5)
       message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
-      await yield_({'progress': 5, 'message': message})
+      await yield_({'progress': self.progress_bar, 'message': message})
 
     async with aclosing(self.progress()) as progress:
       async for event in progress:
@@ -462,7 +464,6 @@ class DataprocSpawner(Spawner):
       await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
       raise RuntimeError(msg_existing)
 
-    progress = 5
     resources = [f'projects/{self.project}']
     log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
@@ -491,19 +492,15 @@ class DataprocSpawner(Spawner):
 
       if not operation_done:
         await asyncio.sleep(10)
-      else:
-        message = 'operation.done()'
-        self.log.info(message)
-        await yield_({'progress': progress, 'message': message})
 
       try:
-        self.log.info(f'At progress {progress}, fetching logs if any.')
+        self.log.info(f'At progress {self.progress_bar}, fetching logs if any.')
         entries = self.logging_client.list_log_entries(resources, filter_=filters)
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
-        await yield_({'progress': progress, 'message': e.message})
+        await yield_({'progress': self.progress_bar, 'message': e.message})
         continue
       except ValueError:
-        await yield_({'progress': progress, 'message': 'ValueError'})
+        await yield_({'progress': self.progress_bar, 'message': 'ValueError'})
         continue
 
       # Reads all the filtered logs since the beginning of spawns and filters
@@ -514,9 +511,9 @@ class DataprocSpawner(Spawner):
         if entry.insert_id not in log_shown:
           payload = MessageToDict(entry.json_payload)
           message = f'{payload.get("method")}: {payload.get("message")}'
-          progress += math.ceil((90 - progress) / 4)
-          self.log.info(f'progress: {progress}, 'f'message: {message}')
-          await yield_({'progress': progress, 'message': message})
+          self.progress_bar += math.ceil((90 - self.progress_bar) / 4)
+          self.log.info(f'progress: {self.progress_bar}, 'f'message: {message}')
+          await yield_({'progress': self.progress_bar, 'message': message})
           log_shown.add(entry.insert_id)
 
     if self.operation.metadata.status.inner_state == 'FAILED':
@@ -524,6 +521,14 @@ class DataprocSpawner(Spawner):
         'progress': 100,
         'failed': True,
         'message': f'FAILED: {self.operation.operation.error.message}'})
+
+    if self.operation.metadata.status.inner_state == 'DONE':
+      status = await self.get_cluster_status(self.clustername())
+      if status == ClusterStatus.State.RUNNING:
+        self.log.info('progress(): Sets progress to 100 for spawning redirect.')
+        await yield_({
+          'progress': 100,
+          'message': 'Cluster successfully created'})
 
   ##############################################################################
   # User form functions

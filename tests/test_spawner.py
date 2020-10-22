@@ -897,14 +897,13 @@ class TestDataprocSpawner:
       return entries
 
     def create_expected():
-      progress = 5
+      progress = 0
       expected = []
       i = 0
       for e in create_logs():
         progress += math.ceil((90 - progress) / 4)
         expected.append({'progress': progress,'message': f'method: message_{i}'})
         i += 1
-      expected.append({'message': 'operation.done()', 'progress': 71})
       return expected
 
     def test_list_log_entries(*args, **kwargs):
