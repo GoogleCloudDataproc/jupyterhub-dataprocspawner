@@ -1048,6 +1048,10 @@ class DataprocSpawner(Spawner):
           }
       )
 
+    if self.user_options.get('internal_ip_only'):
+      config.setdefault('master_config', {})
+      config['gce_cluster_config']['internal_ip_only'] = True
+
     if self.user_options.get('master_node_type'):
       config.setdefault('master_config', {})
       config['master_config']['machine_type_uri'] = self.user_options.get('master_node_type')

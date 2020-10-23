@@ -98,6 +98,11 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
             value=""></input>
   </div>"""
 
+  html_internal_ip_only = """<div class="form-group">
+    <label for="internal_ip_only">Internal IP only</label>
+    <input name="internal_ip_only" type="checkbox"></input>
+  </div>"""
+
   html_master_type = ""
   if node_types:
     html_master_type += """<div class="form-group">
@@ -176,6 +181,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       html_autoscaling_policy,
       html_pip_packages,
       html_condo_packages,
+      html_internal_ip_only,
       html_master_type,
       html_master_disk_type,
       html_master_disc,
