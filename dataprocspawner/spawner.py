@@ -46,10 +46,17 @@ from jupyterhub.user import User
 from jupyterhub.objects import Server
 from tornado import web
 from urllib.parse import urlparse
-from tornado import gen
+from tornado import gen, ioloop
+from tornado.httpclient import HTTPResponse, HTTPRequest, HTTPError, AsyncHTTPClient
+from tornado.log import app_log
 from jupyterhub.utils import maybe_future
+from jupyterhub.utils import exponential_backoff
 from jupyterhub import __version__
 import requests
+import errno
+import socket
+from traitlets import observe
+
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -173,6 +180,140 @@ class DataprocHubUser(User):
   def url(self):
     self.log.info(f'# Function user.url returns value {self.base_url}')
     return self.base_url
+
+  def update_server(self):
+    """ Updates server in DB with Component Gateway.
+
+    Not needed if start returns URL vs (ip, port). Need to block the redirect.
+    """
+    self.log.info('Update server base_url to jupyter/lab')
+    self.db\
+        .query(orm.Server)\
+        .filter(orm.Server.base_url.like(f'{self.base_url}%'))\
+        .update({orm.Server.base_url: '/jupyter/lab/'}, synchronize_session=False)
+    self.db.commit()
+
+
+class DataprocHubServer(Server):
+  """ Extends the server class to wait up based on cluster status.
+
+  By default, a notebook is considered to be healthy if its url returns any code
+  < 500. The Component Gateway URL returns a 302 which would be healthy even if
+  the notebook is not up and running yet. This class blocks the redirect until
+  the Dataproc cluster is running or timeout is reached.
+  """
+
+  def __init__(self, dataproc_client, cluster_data, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self._dataproc_client = dataproc_client
+    self._project = cluster_data['cluster_project']
+    self._region = cluster_data['cluster_region']
+    self._clustername = cluster_data['cluster_name']
+
+  # Overwriting these functions does not change the user.py > spawn behavior.
+  # @classmethod
+  # def from_orm(cls, orm_server):
+  #   """Create a server from an orm.Server"""
+  #   new_orm_server = orm_server
+  #   new_orm_server.base_url = '/jupyter/lab/'
+  #   return cls(orm_server=new_orm_server)
+
+  # @observe('orm_server')
+  # def _orm_server_changed(self, change):
+  #   """When we get an orm_server, get attributes from there."""
+  #   obj = change.new
+  #   self.proto = obj.proto
+  #   self.ip = obj.ip
+  #   self.port = obj.port
+  #   self.base_url = '/jupyter/lab/'
+  #   self.cookie_name = obj.cookie_name
+
+  # # setter to pass through to the database
+  # @observe('ip', 'proto', 'port', 'base_url', 'cookie_name')
+  # def _change(self, change):
+  #   if self.orm_server and getattr(self.orm_server, change.name) != change.new:
+  #     new_value = change.new if change.name != 'base_url' else '/jupyter/lab/'
+  #     setattr(self.orm_server, change.name, new_value)
+
+  async def get_cluster_status(self):
+    cluster = await self.get_cluster()
+    if cluster is not None:
+      return cluster.status.state
+    return None
+
+  async def get_cluster(self):
+    app_log.info(
+        f'Check cluster {self._clustername} in region {self._region} '
+        f'for project {self._project}')
+    try:
+      return self._dataproc_client.get_cluster(
+          project_id=self._project,
+          region=self._region,
+          cluster_name=self._clustername)
+    except exceptions.NotFound:
+      app_log.info(f'wait_for_dataprochub(): Cluster Not Found')
+      return None
+
+  def wait_up(self, timeout=100, http=False, ssl_context=None):
+    """ Waits for this server to come up. """
+    return self.wait_for_dataprochub(timeout=timeout)
+
+  async def wait_for_dataprochub(self, timeout=10):
+    """ Waits for a status of RUNNING """
+    loop = ioloop.IOLoop.current()
+    tic = loop.time()
+    client = AsyncHTTPClient()
+
+    async def is_reachable():
+      """ Checks if notebooks is ready to be used.
+
+      Server here has the same parameters passed when init. But they differ from DB.
+      Redirect seems to care only about the DB.
+
+      Component Gateway URL should be up and running but redirects. JupyterHub
+      sees that as a results. Blocks the HTTPResponse until the cluster is
+      up and running.
+
+      user.wait_up expects an HTTPResponse
+      """
+      app_log.info(f'# self.base_url is {self.base_url} and self.ip is {self.ip}')
+      try:
+        status = await self.get_cluster_status()
+
+        if status is None or status != ClusterStatus.State.RUNNING:
+          app_log.info(f'Returns r_failure, status is {status}')
+          r_failure = await client.fetch("http://1.2.3.4:443", follow_redirects=False)
+          app_log.info(f'Returns r_failure, r_failure is {r_failure}')
+          return r_failure
+
+        app_log.info(f'Returns r_success, status is {status}')
+        r_success = await client.fetch(self.url, follow_redirects=False)
+        app_log.info(f'Returns r_success, r_success is {r_success}')
+        return r_success
+
+      except (exceptions.NotFound, exceptions.PermissionDenied) as e:
+        app_log.info(f'is_reachable(): Dataproc exception {e.message}')
+
+      except HTTPError as e:
+        if e.code >= 500:
+          if e.code != 599:
+            app_log.warning(f'Server at {self.url} responded with error: {e.code}')
+        else:
+          app_log.info(f'Server at {self.url} responded with {e.code}')
+          return e.response
+
+      except (OSError, socket.error) as e:
+        if e.errno not in {errno.ECONNABORTED, errno.ECONNREFUSED, errno.ECONNRESET}:
+          app_log.warning(f'Failed to connect to {self.url} ({e})')
+
+      return False
+
+    re = await exponential_backoff(
+        is_reachable,
+        f'Server did not respond in {timeout} seconds',
+        timeout=timeout,
+    )
+    return re
 
 
 class DataprocSpawner(Spawner):
@@ -344,13 +485,15 @@ class DataprocSpawner(Spawner):
       """)
 
   def __init__(self, *args, **kwargs):
+
+    # Here, self.server is None, self.name is '', self.user is None
+
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
     self.component_gateway_url = None
-    self.handler_redirect = None
     self.progress_bar = 0
 
     if mock:
@@ -405,25 +548,50 @@ class DataprocSpawner(Spawner):
     else:
       if self.gcs_user_folder:
         self.create_example_notebooks()
+
       self.operation = await self.create_cluster()
       self.operation.add_done_callback(self._handle_operation_done)
 
-      # Update DB with Component Gateway urls
-      # TODO(mayran): get_cluster_jupyter_endpoint returns None until we can enable Component Gateway http_ports
       self.component_gateway_url = await self.get_cluster_jupyter_endpoint(
           self.clustername())
-      if not self.component_gateway_url:
-        raise RuntimeError('Cluster does not have an endpoint for Jupyter.')
 
       start_notebook_cmd = self.cmd + self.get_args()
       start_notebook_cmd = ' '.join(start_notebook_cmd)
       self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
 
-    # Returns a non accessible IP that will get updated when the server is ready.
-    # Default code in user.py > spawn()
-    # return self.component_gateway_url
+    # Here, self.server is None, self.name is '', self.user is <User>
+    # TODO(mayran): Check if we can use an existing function that already does this.
+    domain = "/".join(self.component_gateway_url.split('/')[:-1]).replace('https://', '')
+    base_url = f'/{self.component_gateway_url.split("/")[-1]}/'
+
+    # This server needs default values. The server instance will keep them until
+    # the spawn is over but the spawn uses other values that are set in
+    # user.py > spawn that create it's own server passed all the way until
+    # the spawn and store the rest in the DB.
+    orm_server = orm.Server(
+        proto='https',
+        ip=f'{self.component_gateway_url}/?',
+        port=443,
+        base_url=base_url,
+        cookie_name='cookie')
+
+    cluster_data = {
+      'cluster_name': self.clustername(),
+      'cluster_project': self.project,
+      'cluster_region': self.region,
+    }
+    self._server = DataprocHubServer(
+        dataproc_client=self.dataproc_client,
+        cluster_data=cluster_data,
+        connect_url=self.component_gateway_url, # Returned by self.url
+        orm_server=orm_server)
+    self.log.info(f'Server is {self.server}')
+
+    # Whatever is returned here, seems like user.py > spawn will split it in
+    # hostname, port and proto ignoring the path.
+    return self.component_gateway_url
     # return (self.get_dataproc_master_fqdn(), self.port)
-    return ("1.2.3.4", 1234)
+    # return ("1.2.3.4", 1234)
 
   async def stop(self):
     """ Stops an existing cluster """
@@ -687,7 +855,7 @@ class DataprocSpawner(Spawner):
     env['JUPYTERHUB_SERVICE_PREFIX'] = ''
 
     # # TODO(mayran): See if this is needed or can be empty or need CG url
-    # env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = 'https://v2ge46ypsjduxfkwkldfeuehke-dot-us-central1.dataproc.googleusercontent.com/jupyter/lab/'
+    # env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = 'https://v2ge46ypsjduxfkwkldfeuehke-dot-us-central1.dataproc.googleusercontent.com/jupyter/lab/lab/'
 
     # # Sets in the jupyterhub_config related to ai notebook.
     # if 'NEW_JUPYTERHUB_API_URL' in env:
@@ -875,79 +1043,6 @@ class DataprocSpawner(Spawner):
         'https://www.googleapis.com/compute/v1/projects/'
         f'{self.project}/zones/{new_zone}')
     return cluster_data
-
-  def _handle_operation_done(self, future):
-    """ Handles the completion of the cluster creation operation.
-
-    Called no matter the result of the operation. If the cluster was created
-    successfully, should bypass all other JupyterHub logic and redirect the user
-    to their Component Gateway server.
-
-    Could to the code in progress() with the yield but keep progress for yield_
-    only and this for other code that needs to run when the operation is done.
-
-    By default at this point in time:
-    - self.handler        == None (overwritten after spawn)
-    - self.pending        == 'spawn'
-    - self.ready          == False
-    - self._spawn_pending == True
-    - self._stop_pending  == False
-    - self._check_pending == False
-    - inner_state         == 'DONE'
-    - self.handler_redirect is a jupyterhub.handlers.pages.SpawnHandler
-    - self.server is Server == Server(
-        url=http://dataprochub-dsa-m.us-central1-b.c.mam-nooage.internal:12345/user/dsa/,
-        bind_url=http://dataprochub-dsa-m.us-central1-b.c.mam-nooage.internal:12345/user/dsa/)
-
-    AFTER
-    - self._spawn_pending == False
-    - self.pending        == False
-    - self.ready          == True
-
-    We can not do a self.handler_redirect.redirect() because headers were sent
-    already.
-
-    self._spawn_pending = False helps sets self.ready to True.
-    But it does not help with the overall spawner status which has been passed
-    along since the Handler for progress was called:
-    users.py: (r"/api/users/([^/]+)/server", UserServerAPIHandler)
-    > users.py: await self.spawn_single_user(user, server_name, options=options)
-    > base:py: spawn_future = user.spawn(server_name, options, handler=self) : returns spawner
-    > user.py: await server.wait_up(http=True, timeout=spawner.http_timeout, ssl_context=ssl_c...)
-    > objects.py: wait_for_http_server()
-    > utils: await client.fetch(url, follow_redirects=False)
-
-    This code does runs before progress().
-    """
-    self.log.info('_handle_operation_done: Update Component Gateway URL in db.')
-    self.user.update_server(self.component_gateway_url)
-
-  async def get_cluster_jupyter_endpoint(self, clustername):
-    """ Extracts Component Gateway endpoint for Jupyter on the cluster. """
-    cluster = await self.get_cluster(clustername)
-    if cluster is not None:
-      endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
-      return cluster.config.endpoint_config.http_ports[endpoint_name]
-    return None
-
-  async def get_cluster_status(self, clustername):
-    cluster = await self.get_cluster(clustername)
-    if cluster is not None:
-      return cluster.status.state
-    return None
-
-  async def exists(self, clustername):
-    return (await self.get_cluster(clustername)) is not None
-
-  async def get_cluster(self, clustername):
-    try:
-      return self.dataproc_client.get_cluster(
-          project_id=self.project,
-          region=self.region,
-          cluster_name=clustername)
-    except exceptions.NotFound:
-      self.log.info(f'self.dataproc_client.get_cluster(): Exceptions Not Found')
-      return None
 
 ################################################################################
 # Helper Functions

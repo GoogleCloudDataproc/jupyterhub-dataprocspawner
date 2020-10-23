@@ -94,17 +94,11 @@ require(["jquery"], function ($) {
         );
       }
 
-      // if (evt.ready) {
-      //   evtSource.close();
-      //   // reload the current page
-      //   // which should result in a redirect to the running server
-      //   window.location.reload();
-      // }
-
-      // Option 1
-      if ((evt.progress == 100) || (evt.ready)) {
+      if (evt.ready) {
         evtSource.close();
-        // Redirect to the Component Gateway URL when ready
+        // Reloads the current page which should
+        // result in a redirect to the running server.
+        // window.location.reload();
         window.location.replace('/redirect-component-gateway')
       }
 
