@@ -1,3 +1,28 @@
+#!/bin/bash
+
+PROJECT_ID=$1
+VM_NAME=$2
+CONFIGS_LOCATION=$3
+DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:ain"
+
+cat <<EOT > Dockerfile
+FROM jupyterhub/jupyterhub
+
+RUN pip install jupyterhub-dummyauthenticator
+
+COPY jupyterhub_config.py .
+
+COPY . dataprocspawner/
+RUN cd dataprocspawner && pip install .
+
+COPY templates /etc/jupyterhub/templates
+
+EXPOSE 8080
+
+ENTRYPOINT ["jupyterhub"]
+EOT
+
+cat <<EOT > jupyterhub_config.py
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +41,7 @@ c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
 c.JupyterHub.spawner_class = 'dataprocspawner.DataprocSpawner'
 # The port that the spawned notebook listens on for the hub to connect
 c.Spawner.port = 12345
-c.Spawner.project = "mam-nooage"
+c.Spawner.project = "${PROJECT_ID}"
 
 # Must be 8080 to meet Inverting Proxy requirements.
 c.JupyterHub.port = 8080
@@ -28,7 +53,7 @@ c.JupyterHub.hub_ip = '0.0.0.0'
 # The IP address that other services should use to connect to the hub
 c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
 
-c.DataprocSpawner.dataproc_configs = "gs://ain-working/configs"
+c.DataprocSpawner.dataproc_configs = "${CONFIGS_LOCATION}"
 c.DataprocSpawner.dataproc_locations_list = "b,c"
 
 # TODO(mayran): Move the handler into Python code
@@ -48,3 +73,13 @@ c.JupyterHub.extra_handlers = [
   (r"/redirect-component-gateway(/*)", RedirectComponentGatewayHandler),
 ]
 c.JupyterHub.template_paths = ['/etc/jupyterhub/templates']
+EOT
+
+gcloud builds submit -t "${DOCKER_IMAGE}" .
+
+gcloud beta compute instances create "${VM_NAME}" \
+  --project "${PROJECT_ID}" \
+  --scopes=cloud-platform \
+  --zone us-central1-a \
+  --image="projects/deeplearning-platform-release/global/images/common-container-experimental-v20200912-debian-9" \
+  --metadata="proxy-mode=service_account,container=${DOCKER_IMAGE},agent-health-check-path=/hub/health,jupyterhub-host-type=ain,framework=Dataproc Hub,agent-env-file=gs://dataproc-spawner-dist/env-agent,container-use-host-network=True"
