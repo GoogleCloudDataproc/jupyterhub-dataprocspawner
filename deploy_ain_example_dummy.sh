@@ -8,6 +8,11 @@ DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:ain"
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    git \
+    tcpdump
+
 RUN pip install jupyterhub-dummyauthenticator
 
 COPY jupyterhub_config.py .

@@ -16,29 +16,42 @@
 
 This package should only be used within a jupyterhub_config.py file.
 """
-
+import os
 from setuptools import setup
 
+pjoin = os.path.join
+
+packages = ['dataprocspawner']
+for d, _, _ in os.walk('dataprochub'):
+  if os.path.exists(pjoin(d, '__init__.py')):
+    packages.append(d.replace(os.path.sep, '.'))
+
 setup(
-    name='jupyterhub-dataprocspawner',
-    python_requires='>=3.6.0',
-    version='0.1',
-    description='DataprocSpawner for JupyterHub',
-    url='https://github.com/GoogleCloudPlatform/dataprocspawner',
-    license='Apache 2.0',
-    packages=['dataprocspawner'],
-    install_requires=[
-        'tornado>=5.0',
-        'google-cloud-dataproc>=2.0.0',
-        'google-cloud-storage>=1.25.0',
-        'traitlets>=4.3.2',
-        'google-cloud-core>=1.3.0',
-        'google-cloud-secret-manager>=0.1.1',
-        'google-cloud-logging>=1.15'
-        'pyyaml>=5.1.2',
-        'oauthenticator>=0.9.0',
-        'pyjwt>=1.7.1'
+  name='jupyterhub-dataprocspawner',
+  packages=packages,
+  python_requires='>=3.6.0',
+  version='0.1',
+  description='DataprocSpawner for JupyterHub',
+  url='https://github.com/GoogleCloudPlatform/dataprocspawner',
+  license='Apache 2.0',
+  install_requires=[
+    'tornado>=5.0',
+    'google-cloud-dataproc>=2.0.0',
+    'google-cloud-storage>=1.25.0',
+    'traitlets>=4.3.2',
+    'google-cloud-core>=1.3.0',
+    'google-cloud-secret-manager>=0.1.1',
+    'google-cloud-logging>=1.15'
+    'pyyaml>=5.1.2',
+    'oauthenticator>=0.9.0',
+    'pyjwt>=1.7.1'
+  ],
+  entry_points={
+    'console_scripts': [
+      'jupyterhub = dataprochub.app:main',
+      'jupyterhub-singleuser = jupyterhub.singleuser:main',
     ],
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest', 'pytest-asyncio'],
+  },
+  setup_requires=['pytest-runner'],
+  tests_require=['pytest', 'pytest-asyncio'],
 )

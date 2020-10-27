@@ -25,12 +25,16 @@ FROM jupyterhub/jupyterhub
 
 RUN pip install jupyterhub-dummyauthenticator
 
+RUN apt-get update \
+  && apt-get remove -y vim
+
 COPY jupyterhub_config.py .
 
 COPY . dataprocspawner/
 RUN cd dataprocspawner && pip install .
 
-# COPY redirector redirector
+COPY dataprochub dataprochub
+
 COPY templates /etc/jupyterhub/templates
 
 ENTRYPOINT ["jupyterhub"]
@@ -66,37 +70,29 @@ c.JupyterHub.hub_connect_ip = socket.gethostbyname(socket.gethostname())
 c.DataprocSpawner.dataproc_configs = "${CONFIGS_LOCATION}"
 c.DataprocSpawner.dataproc_locations_list = "b,c"
 
-# c.JupyterHub.base_url='/jupyter/lab/'
+c.JupyterHub.log_level = 'DEBUG'
 
 # TODO(mayran): Move the handler into Python code
 # and properly log Component Gateway being None.
-from jupyterhub.handlers.base import BaseHandler
-from tornado.web import authenticated
+# from jupyterhub.handlers.base import BaseHandler
+# from tornado.web import authenticated
 
-class RedirectComponentGatewayHandler(BaseHandler):
-  """ Handles redirect to notebook server after spawn.
+# class RedirectComponentGatewayHandler(BaseHandler):
+#   """ Handles redirect to notebook server after spawn.
   
-  This only works when the spawn_pending page is displayed.
-  For the next access, use the db that is updated by _handle_operation_done.
-  """
-  @authenticated
-  async def get(self, user_name='', user_path=''):
-    next_url = self.current_user.spawner.component_gateway_url
-    if next_url:
-      self.redirect(next_url)
-    self.redirect('/404')
+#   This only works when the spawn_pending page is displayed.
+#   For the next access, use the db that is updated by _handle_operation_done.
+#   """
+#   @authenticated
+#   async def get(self, user_name='', user_path=''):
+#     next_url = self.current_user.spawner.component_gateway_url
+#     if next_url:
+#       self.redirect(next_url)
+#     self.redirect('/404')
 
-class WaitComponentGatewayHandler(BaseHandler):
-  @authenticated
-  async def get(self, user_name='', user_path=''):
-    self.set_status(503)
-    self.set_header("Content-Type", "application/json")
-    self.finish()
-
-c.JupyterHub.extra_handlers = [
-  (r"/redirect-component-gateway(/*)", RedirectComponentGatewayHandler),
-  (r"/wait-component-gateway(/*)", WaitComponentGatewayHandler),
-]
+# c.JupyterHub.extra_handlers = [
+#   (r"/redirect-component-gateway(/*)", RedirectComponentGatewayHandler),
+# ]
 c.JupyterHub.template_paths = ['/etc/jupyterhub/templates']
 EOT
 

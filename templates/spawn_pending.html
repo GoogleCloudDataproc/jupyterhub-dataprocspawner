@@ -98,8 +98,9 @@ require(["jquery"], function ($) {
         evtSource.close();
         // Reloads the current page which should
         // result in a redirect to the running server.
-        // window.location.reload();
-        window.location.replace('/redirect-component-gateway')
+        window.location.reload();
+        // window.location.replace('/redirect-component-gateway')
+        // window.location.replace('/hub/')
       }
 
       if (evt.failed) {

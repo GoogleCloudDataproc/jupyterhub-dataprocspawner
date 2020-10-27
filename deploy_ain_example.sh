@@ -21,6 +21,7 @@ RUN apt-get update \
     libcurl4-openssl-dev \
     python3-wheel \
     git \
+    tcpdump \
   && apt-get purge \
   && apt-get clean -y
 
