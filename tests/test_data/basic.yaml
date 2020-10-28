@@ -5,11 +5,10 @@ config:
     metadata:
       m1: "v1"
       m2: "v2"
-  initializationActions: 
+  initializationActions:
   - executableFile: gs://dataproc-initialization-actions/python/pip-install.sh
-  softwareConfig: 
-    properties: 
-      dataproc:jupyter.hub.enabled: 'true'
+  softwareConfig:
+    properties:
       dataproc:jupyter.hub.args: 'test-args-str-yaml'
       dataproc:jupyter.notebook.gcs.dir: ''
       dataproc:jupyter.hub.env: 'test-env-str-yaml'

@@ -51,8 +51,6 @@ RUN cd dataprocspawner && pip install .
 
 RUN pip install git+https://github.com/GoogleCloudPlatform/jupyterhub-gcp-proxies-authenticator.git
 
-COPY templates /etc/jupyterhub/templates
-
 EXPOSE 8080
 
 ENTRYPOINT ["jupyterhub"]
@@ -114,39 +112,6 @@ c.ConfigurableHTTPProxy.api_url = 'http://127.0.0.1:8005'
 
 # Option on Dataproc Notebook server to allow authentication.
 c.Spawner.args = ['--NotebookApp.disable_check_xsrf=True']
-
-# Passes a Hub URL accessible by Dataproc. Without this AI Notebook passes a 
-# local address. Used by the overwritter get_env().
-metadata_base_url = "http://metadata.google.internal/computeMetadata/v1"
-headers = {'Metadata-Flavor': 'Google'}
-params = ( ('recursive', 'true'), ('alt', 'text') )
-instance_ip = requests.get(
-    f'{metadata_base_url}/instance/network-interfaces/0/ip', 
-    params=params, 
-    headers=headers
-).text
-c.Spawner.env_keep = ['NEW_JUPYTERHUB_API_URL']
-c.Spawner.environment = {
-  'NEW_JUPYTERHUB_API_URL': f'http://{instance_ip}:8080/hub/api'
-}  
-
-# TODO(mayran): Move the handler into Python code
-# and properly log Component Gateway being None.
-from jupyterhub.handlers.base import BaseHandler
-from tornado.web import authenticated
-
-class RedirectComponentGatewayHandler(BaseHandler):
-  @authenticated
-  async def get(self, user_name='', user_path=''):
-    next_url = self.current_user.spawner.component_gateway_url
-    if next_url:
-      self.redirect(next_url)
-    self.redirect('/404')
-    
-c.JupyterHub.extra_handlers = [
-  (r"/redirect-component-gateway(/*)", RedirectComponentGatewayHandler),
-]
-c.JupyterHub.template_paths = ['/etc/jupyterhub/templates']
 EOT
 
 gcloud builds submit -t "${DOCKER_IMAGE}" .

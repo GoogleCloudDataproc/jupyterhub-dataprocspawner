@@ -23,6 +23,7 @@ import math
 import threading
 import json
 import pytest
+import asyncio
 import dataprocspawner
 from dataprocspawner import DataprocSpawner
 from google.auth.credentials import AnonymousCredentials
@@ -37,21 +38,16 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Struct
 from jupyterhub.objects import Hub, Server
 from unittest import mock
-
-class MockStatus(object):
-  def __init__(self, inner_state):
-    self.inner_state = inner_state
-
-class MockMetadata(object):
-  def __init__(self, cluster_uuid, inner_state=None):
-    self.cluster_uuid = cluster_uuid
-    self.status = MockStatus(inner_state=inner_state)
+from types import SimpleNamespace
 
 class MockOperation(object):
-  def __init__(self, name, cluster_uuid, timeout=2.0, op_done=False):
+  def __init__(
+      self, name, cluster_uuid, inner_state=None, timeout=2.0, op_done=False):
+    status = SimpleNamespace(inner_state=inner_state)
+    metadata = SimpleNamespace(cluster_uuid=cluster_uuid, status=status)
     self.name = name
     self.op_done = op_done
-    self.metadata = MockMetadata(cluster_uuid)
+    self.metadata = metadata
     self.timer = threading.Timer(timeout, self.set_delay_done)
     self.timer.start()
 
@@ -63,6 +59,7 @@ class MockOperation(object):
 
 class MockUser(mock.Mock):
   name = 'fake'
+  base_url = '/user/fake'
   server = Server()
 
   @property
@@ -81,7 +78,7 @@ class TestDataprocSpawner:
   gcs_notebooks = 'gs://users-notebooks'
 
   @pytest.mark.asyncio
-  async def test_start_normal(self):
+  async def test_start_normal(self, monkeypatch):
     operation = operations_pb2.Operation()
 
     # Mock the Dataproc API client
@@ -95,15 +92,19 @@ class TestDataprocSpawner:
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
     # Test that the traitlets work
     spawner.project = 'test-create'
     assert spawner.project == 'test-create'
     assert spawner.region == self.region
 
-    (ip, port) = await spawner.start()
-    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
-    # JupyterHub defaults to 0 if no port set
-    assert port == 0
+    url = await spawner.start()
+    assert url == f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
 
     mock_client.create_cluster.assert_called_once()
 
@@ -116,19 +117,24 @@ class TestDataprocSpawner:
     assert env['JUPYTERHUB_API_URL'] is not None
 
   @pytest.mark.asyncio
-  async def test_start_existing_clustername(self):
+  async def test_start_existing_clustername(self, monkeypatch):
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
 
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
 
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
     spawner.project = "test-create-existing"
     assert spawner.project == "test-create-existing"
 
-    (ip, port) = await spawner.start()
-    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
-    assert port == 0
+    url = await spawner.start()
+    assert url == f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
 
     mock_client.create_cluster.assert_not_called()
 
@@ -213,7 +219,7 @@ class TestDataprocSpawner:
     assert await spawner.poll() == None
 
   @pytest.mark.asyncio
-  async def test_poll_no_cluster(self):
+  async def test_poll_no_cluster(self, monkeypatch):
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
@@ -222,39 +228,15 @@ class TestDataprocSpawner:
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, gcs_notebooks=self.gcs_notebooks)
 
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
     spawner.project = 'test-poll-no-cluster'
     assert spawner.project == 'test-poll-no-cluster'
     assert await spawner.poll() == 1
-
-  @pytest.mark.asyncio
-  async def test_normal_zonal_dns(self):
-    fake_creds = AnonymousCredentials()
-    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
-
-    spawner.project = 'non-domain-scoped'
-    assert spawner.project == 'non-domain-scoped'
-
-    (ip, port) = await spawner.start()
-    assert ip == f'dataprochub-fake-m.{self.zone}.c.{spawner.project}.internal'
-    assert port == 0
-
-  @pytest.mark.asyncio
-  async def test_domain_scoped_zonal_dns(self):
-    fake_creds = AnonymousCredentials()
-    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
-
-    spawner.project = "test:domain-scoped"
-    assert spawner.project == "test:domain-scoped"
-
-    (ip, port) = await spawner.start()
-    assert ip == f'dataprochub-fake-m.{self.zone}.c.domain-scoped.test.internal'
-    assert port == 0
 
   # YAML files
   # Tests Dataproc cluster configurations.
@@ -372,8 +354,6 @@ class TestDataprocSpawner:
     assert Component['ANACONDA'].value in config_built['config']['software_config']['optional_components']
 
     assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
-    assert 'dataproc:jupyter.hub.enabled' in config_built['config']['software_config']['properties']
-    # assert 'dataproc:jupyter.notebook.gcs.dir' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_check_core_fields(self, monkeypatch):
@@ -450,8 +430,6 @@ class TestDataprocSpawner:
     assert config_built['cluster_name'] == 'test-clustername'
 
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.args'] == 'test-args-str'
-    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.enabled'] == 'true'
-    # assert config_built['config']['software_config']['properties']['dataproc:jupyter.notebook.gcs.dir'] == f'gs://users-notebooks/fake'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
 
   def test_cluster_definition_overrides(self, monkeypatch):
@@ -487,7 +465,7 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
 
     # Verify that we disable Component Gateway (temporarily)
-    assert config_built['config']['endpoint_config']['enable_http_port_access'] == False
+    assert config_built['config']['endpoint_config']['enable_http_port_access'] == True
     # Verify that we disable preemptibility (temporarily)
     assert 'preemptibility' not in config_built['config']['master_config']
     assert 'preemptibility' not in config_built['config']['worker_config']
@@ -571,8 +549,7 @@ class TestDataprocSpawner:
           'metadata': {
             'KeyCamelCase': 'UlowUlow',
             'key_with_underscore': 'https://downloads.io/protected/files/enterprise-trial.tar.gz',
-            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234',
-            'session-user': MockUser.name
+            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234'
           },
           'zone_uri': 'https://www.googleapis.com/compute/v1/projects/test-project/zones/test-form1-a'
         },
@@ -592,7 +569,6 @@ class TestDataprocSpawner:
               Component.ANACONDA.value],
           'properties': {
             'dataproc:jupyter.hub.args': 'test-args-str',
-            'dataproc:jupyter.hub.enabled': 'true',
             'dataproc:jupyter.hub.env': 'test-env-str',
             'dataproc:jupyter.notebook.gcs.dir': 'gs://users-notebooks/fake',
             'key-with-dash:UPPER_UPPER': '4000',
@@ -673,8 +649,7 @@ class TestDataprocSpawner:
 
     assert config_built['config']['gce_cluster_config']['metadata'] == {
       'm1': 'v1',
-      'm2': 'v2',
-      'session-user': MockUser.name
+      'm2': 'v2'
     }
 
   def test_uris(self, monkeypatch):
@@ -880,6 +855,12 @@ class TestDataprocSpawner:
                               gcs_notebooks=self.gcs_notebooks)
     spawner.project = "test-progress"
 
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
     async def collect(ait):
       items = []
       async for value in ait:
@@ -914,5 +895,5 @@ class TestDataprocSpawner:
     monkeypatch.setattr(mock_logging_client, 'list_log_entries', test_list_log_entries)
     monkeypatch.setattr(spawner, 'operation', op)
 
-    _, _ = await spawner.start()
+    await spawner.start()
     assert await collect(spawner.progress()) == create_expected()

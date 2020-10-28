@@ -51,6 +51,9 @@ setup(
       'jupyterhub = dataprochub.app:main',
       'jupyterhub-singleuser = jupyterhub.singleuser:main',
     ],
+    'jupyterhub.proxies': [
+      'redirect-proxy = dataprochub.proxy:RedirectProxy',
+    ],
   },
   setup_requires=['pytest-runner'],
   tests_require=['pytest', 'pytest-asyncio'],

@@ -26,7 +26,7 @@ config:
   - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-dataproc.sh
     executionTimeout: 600s
   - executableFile: gs://my-public/gcp-burst-tutorial/stable/my-presto-conf.sh
-    executionTimeout: 
+    executionTimeout:
       seconds: 600
       nanos: 0
   masterConfig:
@@ -39,7 +39,7 @@ config:
     numInstances: 1
     preemptibility: NON_PREEMPTIBLE
   softwareConfig:
-    imageVersion: 1.4.27-debian10
+    imageVersion: 1.4.30-debian10
     optionalComponents:
     - JUPYTER
     - ZEPPELIN
