@@ -18,9 +18,10 @@ import re
 from jupyterhub.proxy import ConfigurableHTTPProxy
 
 class RedirectProxy(ConfigurableHTTPProxy):
+  """ Extends ConfigurableHTTPProxy to handle redirects instead of routing. """
 
   def __init__(self, **kwargs):
-    self.log.info(f'# Initializing RedirectProxy.')
+    self.log.info('# Initializing RedirectProxy.')
     super().__init__(**kwargs)
 
   async def add_route(self, routespec, target, data):

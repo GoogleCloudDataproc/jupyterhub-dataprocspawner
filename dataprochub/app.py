@@ -16,9 +16,6 @@
 
 from jupyterhub.app import JupyterHub
 from jupyterhub.handlers.base import UserUrlHandler
-from jupyterhub import handlers, apihandlers
-from jupyterhub.handlers.static import LogoHandler
-import re
 
 class DataprocHubUserUrlHandler(UserUrlHandler):
   """ Extends UserUrlHandler to redirect user once spawn is done. """
@@ -30,7 +27,10 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
     self.redirect(redirect_url)
 
 class DataprocHub(JupyterHub):
-  """ Extends JupyterHub mainly to handle redirect vs proxy. """
+  """ Extends JupyterHub mainly to handle redirect vs proxy.
+
+  The order of the handlers is importat so replaces dynamically when relevant.
+  """
 
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
