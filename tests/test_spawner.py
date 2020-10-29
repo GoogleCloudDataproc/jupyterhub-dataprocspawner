@@ -549,7 +549,8 @@ class TestDataprocSpawner:
           'metadata': {
             'KeyCamelCase': 'UlowUlow',
             'key_with_underscore': 'https://downloads.io/protected/files/enterprise-trial.tar.gz',
-            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234'
+            'key_with_underscore_too': 'some_UPPER_and_UlowerU:1234',
+            'session-user': MockUser.name
           },
           'zone_uri': 'https://www.googleapis.com/compute/v1/projects/test-project/zones/test-form1-a'
         },
@@ -649,7 +650,8 @@ class TestDataprocSpawner:
 
     assert config_built['config']['gce_cluster_config']['metadata'] == {
       'm1': 'v1',
-      'm2': 'v2'
+      'm2': 'v2',
+      'session-user': MockUser.name
     }
 
   def test_uris(self, monkeypatch):
