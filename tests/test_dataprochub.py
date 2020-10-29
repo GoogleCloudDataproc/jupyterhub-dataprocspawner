@@ -79,9 +79,6 @@ class TestDataprocHub:
 
   def test_handler_order(self, monkeypatch):
 
-    def test_logo_file_default(*args, **kwargs):
-      return 'local'
-
     def make_tuple(a):
       if len(a) == 3:
         return (a[0], eval(a[1]), eval(a[2]))
@@ -100,7 +97,7 @@ class TestDataprocHub:
     handlers_expected = [make_tuple(h) for h in handlers_expected]
 
     monkeypatch.setattr(mock_app, 'handlers', handlers_given)
-    monkeypatch.setattr(mock_app, '_logo_file_default', test_logo_file_default)
+    monkeypatch.setattr(mock_app, 'logo_file', 'local')
 
     mock_app.init_handlers()
     handlers_modified = mock_app.handlers
@@ -148,9 +145,6 @@ class TestDataprocHub:
         }
       }
     }
-
-    routes = {}
-    all_routes = {**template, **new_route}
 
     @pytest.mark.asyncio
     async def test_api_request(*args, **kwargs):
