@@ -32,5 +32,5 @@ class RedirectProxy(ConfigurableHTTPProxy):
     reg = r'(https:\/\/)*[a-zA-Z0-9]*-dot-[a-z1-9-]*\.dataproc\.googleusercontent\.com'
     if re.match(reg, target):
       self.log.debug(f'# Skip adding {target} to the routes.')
-      return
+      return target
     await super().add_route(routespec, target, data)

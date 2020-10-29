@@ -118,3 +118,63 @@ class TestDataprocHub:
     assert idx_hub_user != idx_hub_redirect
     assert idx_hub_redirect != 0
     assert idx_hub_user < idx_hub_redirect
+
+
+  @pytest.mark.asyncio
+  async def test_proxy_route(self, monkeypatch):
+
+    mock_proxy = RedirectProxy()
+
+    template = {
+      '/': {
+        'jupyterhub': True,
+        'routespec': '/',
+        'target': 'http://172.17.0.2:8081',
+        'data': {
+          'hub': True,
+          'last_activity': '2020-01-01T01:00:00.000Z',
+        }
+      },
+    }
+
+    new_route = {
+      '/new':  {
+        'jupyterhub': True,
+        'routespec': '/new',
+        'target': 'http://172.17.0.2:8082',
+        'data': {
+          'hub': True,
+          'last_activity': '2020-02-02T02:00:00.000Z',
+        }
+      }
+    }
+
+    routes = {}
+    all_routes = {**template, **new_route}
+
+    @pytest.mark.asyncio
+    async def test_api_request(*args, **kwargs):
+
+      # get_all_routes()
+      if args[0] == '':
+        await asyncio.sleep(0)
+        resp_body = json.dumps(routes).encode('utf-8')
+        resp = SimpleNamespace(body=resp_body)
+        return resp
+
+      # add_routes()
+      await asyncio.sleep(0)
+      routes = {**template, **new_route}
+
+    monkeypatch.setattr(mock_proxy, 'api_request', test_api_request)
+
+    rs_ok = '/route_allowed'
+    rs_ko = 'https://fml2ffthgjd63j4nn7x6tyttju-dot-us-central1.dataproc.googleusercontent.com/gateway/default/jupyter/tree?'
+
+    # Test non Component Gateway URL are added in the routes.
+    ok = await mock_proxy.add_route(routespec='/user/mock/', target=rs_ok, data={})
+    assert ok == None
+
+    # Tests that Component Gateway is not added in the routes.
+    ko = await mock_proxy.add_route(routespec='/user/mock/', target=rs_ko, data={})
+    assert ko == rs_ko
