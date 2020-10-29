@@ -18,6 +18,7 @@ import re
 import os
 import time
 import random
+import string
 import proto
 import yaml
 import math
@@ -241,14 +242,15 @@ class DataprocHubServer(Server):
         if e.code >= 500:
           if e.code != 599:
             # Expects 599 for no connection but might get some others.
-            app_log.warning("Server at %s responded with error: %s", url, e.code)
+            app_log.into(
+                'Server at %s responded with error: %s', self.url, e.code)
         else:
           app_log.info('Server at %s returned error %s', self.url, e.code)
           return e.response
 
       except (OSError, socket.error) as e:
         if e.errno not in {errno.ECONNABORTED, errno.ECONNREFUSED, errno.ECONNRESET}:
-          app_log.warning('Failed to connect to %s (%s)', self.url, e.message)
+          app_log.warning('Failed to connect to %s', self.url)
 
       return False
 
@@ -370,6 +372,11 @@ class DataprocSpawner(Spawner):
       config=True,
       help=""" Allow users to customize their cluster. """,)
 
+  allow_random_cluster_names = Bool(
+      False,
+      config=True,
+      help=""" Allow users to randomize their cluster names. """,)
+
   default_notebooks_gcs_path = Unicode(
       '',
       config=True,
@@ -424,9 +431,6 @@ class DataprocSpawner(Spawner):
       """)
 
   def __init__(self, *args, **kwargs):
-
-    # Here, self.server is None, self.name is '', self.user is None
-
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
 
@@ -456,6 +460,11 @@ class DataprocSpawner(Spawner):
 
       self.gcs_user_folder = f'gs://{self.gcs_notebooks}/{self.get_username()}'
 
+    if self.allow_random_cluster_names:
+      self.rand_str = '-' + self.get_rand_string(4)
+    else:
+      self.rand_str = ''
+
   ##############################################################################
   # Required functions
   ##############################################################################
@@ -467,6 +476,9 @@ class DataprocSpawner(Spawner):
     Returns:
       (String, Int): FQDN of the master node and the port it's accessible at.
     """
+    if not self.project:
+      raise RuntimeError('You need to set a project')
+
     if (await self.get_cluster_status(self.clustername())
         == ClusterStatus.State.DELETING):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
@@ -968,7 +980,7 @@ class DataprocSpawner(Spawner):
     """ JupyterHub provides a notebook per user, so the username is used to
     distinguish between clusters. """
     if cluster_name is None:
-      return self.cluster_name_pattern.format(self.get_username())
+      return self.cluster_name_pattern.format(self.get_username()) + self.rand_str
     return cluster_name
 
   def calculate_config_value(self, key, path):
@@ -1112,9 +1124,17 @@ class DataprocSpawner(Spawner):
     # Unrecognized minor version, fail open
     return True
 
-  # Convert list of user defined labels to dictionary.
   def list_to_dict(self, rlist):
+    """ Converts list of user defined labels to dictionary. """
     return dict(map(lambda s: s.split(':'), rlist))
+
+  def get_rand_string(self, length):
+    """ Generates a fixed length random alphanumeric string of lower letters
+    and digits.
+    """
+    letters_and_digits = string.ascii_lowercase + string.digits
+    rand_str = ''.join((random.choice(letters_and_digits) for i in range(length)))
+    return rand_str
 
 
 ################################################################################
@@ -1320,6 +1340,7 @@ class DataprocSpawner(Spawner):
         metadata['script_storage_location'] = idle_path
         metadata['max-idle'] = self.idle_checker.get('timeout', '60m')
 
+      metadata['session-user'] = self.get_username()
       cluster_data['config']['gce_cluster_config']['metadata'] = metadata
       cluster_data['config']['initialization_actions'] = (
           init_actions + cluster_data['config']['initialization_actions']
@@ -1372,12 +1393,6 @@ class DataprocSpawner(Spawner):
     cluster_data['config']\
         .setdefault('endpoint_config', {})\
         .setdefault('enable_http_port_access', True)
-    # if (cluster_data['config']
-    #     .setdefault('endpoint_config', {})
-    #     .setdefault('enable_http_port_access', False)):
-    #   if not self._validate_image_version_supports_component_gateway(
-    #       cluster_data['config']['software_config']['image_version']):
-    #     cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
 
     cluster_data['config']['software_config'].setdefault('optional_components', [])
 
