@@ -196,7 +196,12 @@ class DataprocHubServer(Server):
       app_log.info('wait_for_dataprochub(): Cluster Not Found')
       return None
 
-  def wait_up(self, timeout=100, http=False, ssl_context=None):
+  def wait_up(
+      self,
+      timeout=100,
+      http=False, # pylint: disable=unused-argument
+      ssl_context=None # pylint: disable=unused-argument
+  ):
     """ Waits for this server to come up. """
     return self.wait_for_dataprochub(timeout=timeout)
 
