@@ -16,7 +16,6 @@
 import errno
 import socket
 import asyncio
-from types import SimpleNamespace
 
 from google.api_core import exceptions
 from google.cloud.dataproc_v1beta2 import ClusterStatus
