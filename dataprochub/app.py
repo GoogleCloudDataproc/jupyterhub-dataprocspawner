@@ -39,7 +39,7 @@ class DataprocHub(JupyterHub):
       (r'/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?', DataprocHubUserUrlHandler),
     ]
 
-    self.new_prefixed = self.add_url_prefix(self.hub_prefix, self.new_handlers)
+    self.new_prefixed = self.add_url_prefix(self.hub_prefix, self.new_handlers.copy())
 
   def init_handlers(self):
     """ Modifies the default app handlers.

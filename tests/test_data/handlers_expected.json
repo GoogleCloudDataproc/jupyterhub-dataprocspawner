@@ -1,7 +1,9 @@
 [
+  ["/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"],
+  ["/hub/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"],
   ["/hub/login", "handlers.login.LoginHandler"],
   ["/hub", "handlers.base.AddSlashHandler"],
-  ["/hub/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"],
+  ["/hub/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "handlers.base.UserUrlHandler"],
   ["/hub/user-redirect/(.*)?", "handlers.base.UserRedirectHandler"],
   ["/hub/security/csp-report", "handlers.base.CSPReportHandler"],
   ["/hub/", "handlers.pages.RootHandler"],
@@ -45,8 +47,7 @@
   ["/hub/api/services/([^/]+)", "apihandlers.services.ServiceAPIHandler"],
   ["/hub/logo", "handlers.static.LogoHandler", "{'path': 'local'}"],
   ["/hub/api/(.*)", "apihandlers.base.API404"],
-  ["/(services)/([^/]+)", "handlers.base.AddSlashHandler"],
+  ["/(user|services)/([^/]+)", "handlers.base.AddSlashHandler"],
   ["(?!/hub/).*", "handlers.base.PrefixRedirectHandler"],
-  ["(.*)", "handlers.base.Template404"],
-  ["/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"]
+  ["(.*)", "handlers.base.Template404"]
 ]
