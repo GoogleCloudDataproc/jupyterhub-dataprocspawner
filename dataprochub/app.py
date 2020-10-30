@@ -35,21 +35,11 @@ class DataprocHub(JupyterHub):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
-    self.new_user_handler = (
-      r'/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?',
-      DataprocHubUserUrlHandler,
-    )
+    self.new_handlers = [
+      (r'/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?', DataprocHubUserUrlHandler),
+    ]
 
-    self.new_user_handler_prefixed = self.add_url_prefix(
-        self.hub_prefix, [self.new_user_handler])[0]
-
-    self.regex_to_change = {
-      r'%s(user|services)/([^/]+)' % self.base_url: r'%s(services)/([^/]+)' % self.base_url
-    }
-
-    self.handler_to_change = {
-      self.new_user_handler_prefixed[0]: self.new_user_handler_prefixed[1]
-    }
+    self.new_prefixed = self.add_url_prefix(self.hub_prefix, self.new_handlers)
 
   def init_handlers(self):
     """ Modifies the default app handlers.
@@ -63,17 +53,12 @@ class DataprocHub(JupyterHub):
     """
     super().init_handlers()
 
-    for idx, h in enumerate(self.handlers):
-      h_regex = h[0]
-      h_class = h[1]
+    self.handlers = (
+        self.new_handlers +
+        self.new_prefixed +
+        self.handlers
+    )
 
-      if h_regex in self.regex_to_change:
-        self.handlers[idx] = (self.regex_to_change[h_regex], h_class)
-
-      if h_regex in self.handler_to_change:
-        self.handlers[idx] = (h_regex, self.handler_to_change[h_regex])
-
-    self.handlers.append(self.new_user_handler)
     self.log.debug(self.handlers)
 
 main = DataprocHub.launch_instance

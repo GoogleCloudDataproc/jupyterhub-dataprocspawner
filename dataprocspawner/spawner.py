@@ -832,6 +832,7 @@ class DataprocSpawner(Spawner):
       (str) Component Gateway URL without the trailing `/`
     """
     cluster = await self.get_cluster(clustername)
+    # TODO(mayran): Possibly deprecate this and force to JupyterLab.
     if cluster is not None:
       endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
       return cluster.config.endpoint_config.http_ports[endpoint_name].rstrip('/')
