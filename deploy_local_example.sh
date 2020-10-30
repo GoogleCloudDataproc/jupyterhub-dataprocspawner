@@ -24,14 +24,19 @@ cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
 
 RUN pip install jupyterhub-dummyauthenticator
+
 RUN apt-get update \
   && apt-get remove -y vim
 
 COPY jupyterhub_config.py .
+
 COPY . dataprocspawner/
+RUN cd dataprocspawner && pip install .
+
 COPY dataprochub dataprochub
 
-RUN cd dataprocspawner && pip install .
+COPY templates /etc/jupyterhub/templates
+
 ENTRYPOINT ["jupyterhub"]
 EOT
 
@@ -50,11 +55,12 @@ cat <<EOT > jupyterhub_config.py
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import socket
-
-c.JupyterHub.proxy_class = 'redirect-proxy'
 c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
 c.JupyterHub.spawner_class = 'dataprocspawner.DataprocSpawner'
+# The port that the spawned notebook listens on for the hub to connect
+c.Spawner.port = 12345
+
+import socket
 
 # Have JupyterHub listen on all interfaces
 c.JupyterHub.hub_ip = '0.0.0.0'
@@ -65,6 +71,29 @@ c.DataprocSpawner.dataproc_configs = "${CONFIGS_LOCATION}"
 c.DataprocSpawner.dataproc_locations_list = "b,c"
 
 c.JupyterHub.log_level = 'DEBUG'
+
+# TODO(mayran): Move the handler into Python code
+# and properly log Component Gateway being None.
+# from jupyterhub.handlers.base import BaseHandler
+# from tornado.web import authenticated
+
+# class RedirectComponentGatewayHandler(BaseHandler):
+#   """ Handles redirect to notebook server after spawn.
+
+#   This only works when the spawn_pending page is displayed.
+#   For the next access, use the db that is updated by _handle_operation_done.
+#   """
+#   @authenticated
+#   async def get(self, user_name='', user_path=''):
+#     next_url = self.current_user.spawner.component_gateway_url
+#     if next_url:
+#       self.redirect(next_url)
+#     self.redirect('/404')
+
+# c.JupyterHub.extra_handlers = [
+#   (r"/redirect-component-gateway(/*)", RedirectComponentGatewayHandler),
+# ]
+c.JupyterHub.template_paths = ['/etc/jupyterhub/templates']
 EOT
 
 mkdir -p /tmp/keys
