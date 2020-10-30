@@ -634,11 +634,13 @@ class DataprocSpawner(Spawner):
     to communicate back to JupyterHub.
     """
     env = super().get_env()
-    remove_env =  ['JUPYTERHUB_API_TOKEN', 'JPY_API_TOKEN', 'JUPYTERHUB_HOST',
-        'JUPYTERHUB_ADMIN_ACCESS', 'JUPYTERHUB_CLIENT_ID', 'JUPYTERHUB_USER',
-        'JUPYTERHUB_COOKIE_OPTIONS',  'JUPYTERHUB_OAUTH_CALLBACK_URL',
-        'JUPYTERHUB_API_URL', 'JUPYTERHUB_ACTIVITY_URL', 'JUPYTERHUB_BASE_URL',
-        'JUPYTERHUB_SERVICE_PREFIX', 'JUPYTERHUB_SERVER_NAME']
+    remove_env =  [
+      'JUPYTERHUB_API_TOKEN',
+      'JPY_API_TOKEN',
+      'JUPYTERHUB_CLIENT_ID',
+      'JUPYTERHUB_OAUTH_CALLBACK_URL',
+      'JUPYTERHUB_API_URL',
+    ]
     for e in remove_env:
       env[e] = ''
     self.log.debug(f'env is {env}')

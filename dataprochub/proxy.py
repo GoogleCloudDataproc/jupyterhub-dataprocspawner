@@ -29,8 +29,10 @@ class RedirectProxy(ConfigurableHTTPProxy):
 
     Using the default add_route would return a 404 when accessing /user/<USER>.
     """
-    reg = r'(https:\/\/)*[a-zA-Z0-9]*-dot-[a-z1-9-]*\.dataproc\.googleusercontent\.com'
-    if re.match(reg, target):
+    self.log.debug(f'routespec is {routespec} and target is {target}')
+    reg_routespec = r'(.)*/user/(.)*'
+    reg_target = r'(https:\/\/)*[a-zA-Z0-9]*-dot-[a-z1-9-]*\.dataproc\.googleusercontent\.com'
+    if re.match(reg_routespec, routespec) and re.match(reg_target, target):
       self.log.debug(f'# Skip adding {target} to the routes.')
       return target
     await super().add_route(routespec, target, data)
