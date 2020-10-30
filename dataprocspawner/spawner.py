@@ -16,7 +16,6 @@
 import json
 import re
 import os
-import time
 import random
 import string
 import proto
@@ -26,6 +25,7 @@ import asyncio
 import errno
 import socket
 from datetime import datetime as dt
+from types import SimpleNamespace
 
 from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
@@ -442,7 +442,7 @@ class DataprocSpawner(Spawner):
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
     self.component_gateway_url = None
-    self.progress_bar = 0
+    self.progressor = SimpleNamespace(bar=0, logging=set(), start='')
 
     if mock:
       # Mock the API
@@ -539,10 +539,10 @@ class DataprocSpawner(Spawner):
     elif status == ClusterStatus.State.ERROR:
       return 1
     elif status == ClusterStatus.State.CREATING:
-      self.log.info(f'{self.clustername()} is creating')
+      self.log.info(f'{self.clustername()} is creating.')
       return None
     elif status in (ClusterStatus.State.RUNNING, ClusterStatus.State.UPDATING):
-      self.log.info(f'{self.clustername()} is up and running')
+      self.log.info(f'{self.clustername()} is up and running.')
       return None
 
   @async_generator
@@ -558,20 +558,22 @@ class DataprocSpawner(Spawner):
           "Spawn not pending, can't generate progress for %s", self._log_name)
       return
 
+    self.log.debug('# Running _generate_progress')
+
     operation_id = self.operation.operation.name.split('/')[-1]
     cluster_uuid = self.operation.metadata.cluster_uuid
-    operation_done = False
+    message_uuid = f'Operation {operation_id} for cluster uuid {cluster_uuid}'
 
-    try:
-      operation_done = self.operation.done()
-    except exceptions.GoogleAPICallError as e:
-      self.log.warning(f'Error operation.done(): {e.message}')
-
-    if not operation_done:
-      await yield_({'progress': self.progress_bar, 'message': 'Server requested'})
-      self.progress_bar = max(self.progress_bar, 5)
-      message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
-      await yield_({'progress': self.progress_bar, 'message': message})
+    if not self.progressor.logging:
+      yields_start = (
+        {'progress': 0, 'message': 'Server requested.'},
+        {'progress': 5, 'message': message_uuid},
+      )
+      self.progressor.bar = 5
+      self.progressor.logging.add('yields_start')
+      self.progressor.start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+      for y in yields_start:
+        await yield_(y)
 
     async with aclosing(self.progress()) as progress:
       async for event in progress:
@@ -601,7 +603,6 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(msg_existing)
 
     resources = [f'projects/{self.project}']
-    log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
                    'runBuiltinInitializationActions','awaitNameNodeSafeModeExit',
                    'runCustomInitializationActions'}
@@ -615,10 +616,9 @@ class DataprocSpawner(Spawner):
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
       f' AND jsonPayload.method=({filters_methods})'
     )
-    filters = f'{filters_base} AND timestamp>="{log_start}"'
-    self.log.info(f'Filters are: {filters}')
+    filters = f'{filters_base} AND timestamp>="{self.progressor.start}"'
+    self.log.debug(f'Filters are: {filters}')
 
-    log_shown = set()
     operation_done = False
     while not operation_done:
       try:
@@ -630,27 +630,24 @@ class DataprocSpawner(Spawner):
         await asyncio.sleep(10)
 
       try:
-        self.log.info(f'At progress {self.progress_bar}, fetching logs if any.')
-        entries = self.logging_client.list_log_entries(resources, filter_=filters)
+        self.log.info(f'At progress {self.progressor.bar}, fetching logs if any.')
+
+        for entry in self.logging_client.list_log_entries(resources, filter_=filters):
+          if entry.insert_id not in self.progressor.logging:
+            payload = MessageToDict(entry.json_payload)
+            message = f'{payload.get("method")}: {payload.get("message")}'
+            self.progressor.bar += math.ceil((90 - self.progressor.bar) / 4)
+            self.log.debug(f'progress: {self.progressor.bar}, message: {message}')
+            await yield_({'progress': self.progressor.bar, 'message': message})
+            self.progressor.logging.add(entry.insert_id)
+
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
-        await yield_({'progress': self.progress_bar, 'message': e.message})
-        continue
-      except ValueError:
-        await yield_({'progress': self.progress_bar, 'message': 'ValueError'})
+        await yield_({'progress': self.progressor.bar, 'message': e.message})
         continue
 
-      # Reads all the filtered logs since the beginning of spawns and filters
-      # out the ones that were processed in a previous `while` loop. This method
-      # simplifies code vs using a loop with sequential timestamps. The latter
-      # would be useful if `entries` was a big list which is not the case here.
-      for entry in entries:
-        if entry.insert_id not in log_shown:
-          payload = MessageToDict(entry.json_payload)
-          message = f'{payload.get("method")}: {payload.get("message")}'
-          self.progress_bar += math.ceil((90 - self.progress_bar) / 4)
-          self.log.info(f'progress: {self.progress_bar}, 'f'message: {message}')
-          await yield_({'progress': self.progress_bar, 'message': message})
-          log_shown.add(entry.insert_id)
+      except ValueError:
+        await yield_({'progress': self.progressor.bar, 'message': 'ValueError'})
+        continue
 
     if self.operation.metadata.status.inner_state == 'FAILED':
       await yield_({
@@ -661,9 +658,8 @@ class DataprocSpawner(Spawner):
     if self.operation.metadata.status.inner_state == 'DONE':
       status = await self.get_cluster_status(self.clustername())
       if status == ClusterStatus.State.RUNNING:
-        self.log.info('progress(): Sets progress to 100 for spawning redirect.')
         await yield_({
-          'progress': 100,
+          'progress': 95,
           'message': 'Cluster successfully created'})
 
   ##############################################################################
@@ -724,7 +720,10 @@ class DataprocSpawner(Spawner):
     return self._options_form_default()
 
   def options_from_form(self, formdata):
-    """ Returns the selected option selected by the user. """
+    """ Returns the selected option selected by the user.
+
+    If authuser is in the GET url, it also sends the form.
+    """
     self.log.info(f'formdata is {formdata}')
 
     options = {}
@@ -733,16 +732,9 @@ class DataprocSpawner(Spawner):
         value = value[0]
       else:
         value = None
-
       if key == 'cluster_zone':
         self.zone = value or self.zone
-
       options[key] = value
-
-    self.log.info(
-        f'# User selected cluster: {options.get("cluster_type")} '
-        f'and zone: {self.zone} in region {self.region}.')
-
     return options
 
 ################################################################################
@@ -800,7 +792,8 @@ class DataprocSpawner(Spawner):
     return sc
 
   def read_gcs_file(self, file_path) -> dict:
-    file_path = file_path.replace('gs://', '').replace('//', '/').split('/')
+    if file_path:
+      file_path = file_path.replace('gs://', '').replace('//', '/').split('/')
     bn = file_path[0]
     fp = '/'.join(file_path[1:])
 
@@ -866,8 +859,9 @@ class DataprocSpawner(Spawner):
     bucket_name, folder_name = self._split_gcs_path(default_path)
     destination_bucket_name, destination_folder_name = self._split_gcs_path(user_folder)
     destination_folder_name += self.default_notebooks_folder
-    self.log.debug(f"""Copy from {bucket_name}/{folder_name} to
-        {destination_bucket_name}/{destination_folder_name}""")
+    self.log.debug(
+        f'Copy from {bucket_name}/{folder_name} to '
+        f'{destination_bucket_name}/{destination_folder_name}')
 
     source_bucket = storage_client.bucket(bucket_name)
     blobs = storage_client.list_blobs(bucket_name, prefix=folder_name)
@@ -896,12 +890,13 @@ class DataprocSpawner(Spawner):
     cluster = await self._create_cluster(self.cluster_definition)
     return cluster
 
-  # TODO(mayran): Create a warapper to handle future execptions and display them
   async def _create_cluster(self, cluster_data, try_count=3):
     """ Implements custom retry functionality in order to change zone before
     each recall. """
     while True:
       try:
+        # Prevents having a ERROR:asyncio:Task exception was never retrieved.
+        await asyncio.sleep(0)
         return self.dataproc_client.create_cluster(project_id=self.project,
                                                    region=self.region,
                                                    cluster=cluster_data)
@@ -916,7 +911,7 @@ class DataprocSpawner(Spawner):
         try_count -= 1
         if try_count > 0:
           cluster_data = self.change_zone_in_cluster_cfg(cluster_data)
-          time.sleep(3)
+          await asyncio.sleep(3)
           continue
         raise e
 
@@ -1118,7 +1113,7 @@ class DataprocSpawner(Spawner):
     try:
       subminor_version = int(version.split('.')[2])
     except ValueError as e:
-      self.log.info('Failed to parse image version "%s": %s' % (image_version, e))
+      self.log.warning('Failed to parse image version "%s": %s' % (image_version, e))
       # Something weird is going on with image version format, fail open
       return True
 
