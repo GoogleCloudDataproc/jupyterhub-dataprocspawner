@@ -15,6 +15,8 @@
 
 import errno
 import socket
+import asyncio
+from types import SimpleNamespace
 
 from google.api_core import exceptions
 from google.cloud.dataproc_v1beta2 import ClusterStatus
@@ -91,7 +93,6 @@ class DataprocHubServer(Server):
 
       user.wait_up expects an HTTPResponse
       """
-      unfetchable = 'http://1.2.3.4:443'
       try:
         status = await self.get_cluster_status()
 
@@ -100,8 +101,8 @@ class DataprocHubServer(Server):
           raise RuntimeError('There was an error when starting the cluster.')
 
         if status is None or status != ClusterStatus.State.RUNNING:
-          r_failure = await client.fetch(unfetchable, follow_redirects=False)
-          return r_failure
+          await asyncio.sleep(0)
+          return False
 
         app_log.info('Returns r_success %s with url %s', status, self.url)
         r_success = await client.fetch(self.url, follow_redirects=True)
