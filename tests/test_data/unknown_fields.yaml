@@ -51,7 +51,7 @@ config:
     minCpuPlatform: AUTOMATIC
     numInstances: 1
   softwareConfig:
-    imageVersion: 1.4.27-debian10
+    imageVersion: 1.4.30-debian10
     # Bad enums in a repeated field: only bad values should be removed
     optionalComponents:
     - JUPYTER

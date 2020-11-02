@@ -8,3 +8,6 @@ build
 overwrite.sh
 tries/
 .prettierrc.js
+deploy_ain_example.sh
+/Dockerfile
+/jupyterhub_config.py
