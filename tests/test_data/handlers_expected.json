@@ -1,5 +1,4 @@
 [
-  ["/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"],
   ["/hub/user/(?P<user_name>[^/]+)(?P<user_path>/.*)?", "DataprocHubUserUrlHandler"],
   ["/hub/login", "handlers.login.LoginHandler"],
   ["/hub", "handlers.base.AddSlashHandler"],

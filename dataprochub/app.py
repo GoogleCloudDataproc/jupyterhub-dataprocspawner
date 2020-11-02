@@ -29,7 +29,11 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
 class DataprocHub(JupyterHub):
   """ Extends JupyterHub mainly to handle redirect vs proxy.
 
-  The order of the handlers is importat so replaces dynamically when relevant.
+  The order of the handlers is important, the handler with the lowest index in
+  the list having the highest priority.
+
+  This class inserts a new handler for the user at the lowest index (e.g highest
+  priority) without changing the existing handlers.
   """
 
   def __init__(self, *args, **kwargs):
@@ -52,13 +56,7 @@ class DataprocHub(JupyterHub):
     Order of the element in the handlers list matters!!!
     """
     super().init_handlers()
-
-    self.handlers = (
-        self.new_handlers +
-        self.new_prefixed +
-        self.handlers
-    )
-
+    self.handlers = self.new_prefixed + self.handlers
     self.log.debug(self.handlers)
 
 main = DataprocHub.launch_instance

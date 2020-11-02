@@ -82,15 +82,16 @@ class DataprocHubServer(Server):
     async def is_reachable():
       """ Checks if notebooks is ready to be used.
 
-      self.base_url and self.ip are values that were given to the DataprocHubServer.
-      But they differ from DB. Redirect seems to care only about the DB due to
-      user.py > spawner.
+      Overwrites the default Notebooks health-check that returned a success for
+      all HTTP code < 500 which included redirects like calling the Component
+      Gateway URL returns even when the notebook is not yet ready.
 
-      Component Gateway URL should be up and running but redirects. JupyterHub
-      sees that as a results. Blocks the HTTPResponse until the cluster is
-      up and running.
+      Uses the cluster state to check if the Component Gateway URL can redirect
+      to a notebook.
 
-      user.wait_up expects an HTTPResponse
+      Returns:
+        HTTPResponse if successful.
+        False otherwise.
       """
       try:
         status = await self.get_cluster_status()
