@@ -574,15 +574,9 @@ class DataprocSpawner(Spawner):
           self.machine_types_list.split(',')
       )
 
-    # html_base_top = get_html_top()
-
-    # html_base_bottom = get_html_bottom()
-
     return '\n'.join([
-        # html_base_top,
         base_html,
         html_customize_cluster
-        # html_base_bottom
     ])
 
   def _list_gcs_files(self, gcs_paths, sep=','):
@@ -1097,10 +1091,6 @@ class DataprocSpawner(Spawner):
           }
       )
 
-    # if self.user_options.get('internal_ip_only'):
-    #   config.setdefault('master_config', {})
-    #   config['gce_cluster_config']['internal_ip_only'] = True
-
     if self.user_options.get('master_node_type'):
       config.setdefault('master_config', {})
       config['master_config']['machine_type_uri'] = self.user_options.get('master_node_type')
@@ -1112,12 +1102,14 @@ class DataprocSpawner(Spawner):
     if self.user_options.get('master_disk_type'):
       config.setdefault('master_config', {})
       config['master_config'].setdefault('disk_config', {})
-      config['master_config']['disk_config']['boot_disk_type'] = self.user_options.get('master_disk_type')
+      config['master_config']['disk_config']['boot_disk_type'] = \
+        self.user_options.get('master_disk_type')
 
     if self.user_options.get('worker_disk_type'):
       config.setdefault('worker_config', {})
       config['worker_config'].setdefault('disk_config', {})
-      config['worker_config']['disk_config']['boot_disk_type'] = self.user_options.get('worker_disk_type')
+      config['worker_config']['disk_config']['boot_disk_type'] = \
+        self.user_options.get('worker_disk_type')
 
     if self.user_options.get('master_disk_size'):
       try:
