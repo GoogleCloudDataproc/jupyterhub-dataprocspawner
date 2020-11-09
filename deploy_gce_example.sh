@@ -27,7 +27,7 @@
 PROJECT_ID=$1
 VM_NAME=$2
 CONFIGS_LOCATION=$3
-DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:cg"
+DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce"
 
 cat <<EOT > Dockerfile
 FROM jupyterhub/jupyterhub
