@@ -38,8 +38,6 @@ from traitlets import List, Unicode, Dict, Bool
 from dataprocspawner.spawnable import DataprocHubServer
 from dataprocspawner.customize_cluster import (
     get_base_cluster_html_form, get_custom_cluster_html_form)
-from .customize_cluster import (get_base_cluster_html_form,
-                                get_custom_cluster_html_form)
 
 from async_generator import async_generator, yield_, aclosing
 
