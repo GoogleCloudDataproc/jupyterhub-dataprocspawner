@@ -39,9 +39,7 @@ from dataprocspawner.spawnable import DataprocHubServer
 from dataprocspawner.customize_cluster import (
     get_base_cluster_html_form, get_custom_cluster_html_form)
 from .customize_cluster import (get_base_cluster_html_form,
-                                get_custom_cluster_html_form,
-                                get_html_top,
-                                get_html_bottom)
+                                get_custom_cluster_html_form)
 
 from async_generator import async_generator, yield_, aclosing
 
@@ -270,6 +268,11 @@ class DataprocSpawner(Spawner):
       False,
       config=True,
       help=""" Allow users to randomize their cluster names. """,)
+
+  internal_ip_only = Bool(
+      False,
+      config=True,
+      help=""" Configure all instances to have only internal IP addresses. """,)
 
   default_notebooks_gcs_path = Unicode(
       '',
@@ -571,15 +574,15 @@ class DataprocSpawner(Spawner):
           self.machine_types_list.split(',')
       )
 
-    html_base_top = get_html_top()
+    # html_base_top = get_html_top()
 
-    html_base_bottom = get_html_bottom()
+    # html_base_bottom = get_html_bottom()
 
     return '\n'.join([
-        html_base_top,
+        # html_base_top,
         base_html,
-        html_customize_cluster,
-        html_base_bottom
+        html_customize_cluster
+        # html_base_bottom
     ])
 
   def _list_gcs_files(self, gcs_paths, sep=','):
@@ -1094,9 +1097,9 @@ class DataprocSpawner(Spawner):
           }
       )
 
-    if self.user_options.get('internal_ip_only'):
-      config.setdefault('master_config', {})
-      config['gce_cluster_config']['internal_ip_only'] = True
+    # if self.user_options.get('internal_ip_only'):
+    #   config.setdefault('master_config', {})
+    #   config['gce_cluster_config']['internal_ip_only'] = True
 
     if self.user_options.get('master_node_type'):
       config.setdefault('master_config', {})
@@ -1257,6 +1260,9 @@ class DataprocSpawner(Spawner):
       cluster_data['config']['initialization_actions'] = (
           init_actions + cluster_data['config']['initialization_actions']
       )
+
+      if self.internal_ip_only:
+        cluster_data['config']['gce_cluster_config']['internal_ip_only'] = True
 
       if 'labels' not in cluster_data:
         cluster_data.setdefault('labels', {})
