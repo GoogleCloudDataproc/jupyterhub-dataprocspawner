@@ -37,7 +37,9 @@ from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
 from .customize_cluster import (get_base_cluster_html_form,
-                                get_custom_cluster_html_form)
+                                get_custom_cluster_html_form,
+                                get_html_top,
+                                get_html_bottom)
 
 from async_generator import async_generator, yield_, aclosing
 
@@ -550,9 +552,15 @@ class DataprocSpawner(Spawner):
           self.machine_types_list.split(',')
       )
 
+    html_base_top = get_html_top()
+
+    html_base_bottom = get_html_bottom()
+
     return '\n'.join([
+        html_base_top,
         base_html,
-        html_customize_cluster
+        html_customize_cluster,
+        html_base_bottom
     ])
 
   def _list_gcs_files(self, gcs_paths, sep=','):
@@ -1067,15 +1075,17 @@ class DataprocSpawner(Spawner):
 
     if self.user_options.get('master_disk_type'):
       config.setdefault('master_config', {})
+      config['master_config'].setdefault('disk_config', {})
       config['master_config']['disk_config']['boot_disk_type'] = self.user_options.get('master_disk_type')
 
     if self.user_options.get('worker_disk_type'):
       config.setdefault('worker_config', {})
+      config['worker_config'].setdefault('disk_config', {})
       config['worker_config']['disk_config']['boot_disk_type'] = self.user_options.get('worker_disk_type')
 
-    if self.user_options.get('master_node_disc_size'):
+    if self.user_options.get('master_disk_size'):
       try:
-        val = int(self.user_options.get('master_node_disc_size'))
+        val = int(self.user_options.get('master_disk_size'))
         if val < 15:
           val = 15
         config.setdefault('master_config', {})
@@ -1084,9 +1094,9 @@ class DataprocSpawner(Spawner):
       except ValueError:
         pass
 
-    if self.user_options.get('worker_node_disc_size'):
+    if self.user_options.get('worker_disk_size'):
       try:
-        val = int(self.user_options.get('worker_node_disc_size'))
+        val = int(self.user_options.get('worker_disk_size'))
         if val < 15:
           val = 15
         config.setdefault('worker_config', {})

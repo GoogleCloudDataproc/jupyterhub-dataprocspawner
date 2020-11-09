@@ -14,183 +14,790 @@
 
 """Functions for creating form to customize cluster configuration."""
 
+def get_html_top():
+	html_base_top = '''
+	<div class="jupyter-content mdc-typography">
+		<div class="jupyter-form">
+			<link
+				rel="stylesheet"
+				href="https://fonts.googleapis.com/icon?family=Material+Icons"
+			/>
+			<link rel="stylesheet" href="https://storage.googleapis.com/artifacts.pso-wmt-dp-spawner.appspot.com/index.css?v=4" />
+			<br />
+			<br />'''
+
+	return html_base_top
+
+def get_html_bottom():
+	html_base_bottom = '''
+		</div>
+		</div>
+		<script src="https://storage.googleapis.com/artifacts.pso-wmt-dp-spawner.appspot.com/index.js?v=4"></script>'''
+
+	return html_base_bottom
 
 def get_base_cluster_html_form(configs, locations_list, jupyterhub_region):
-  """
-  Args:
-    - List configs: List of Cloud Dataproc cluster config files path in GCS.
-    - List locations_list: List of zones letters to choose from to create a
-      Cloud Dataproc cluster in the JupyterHub region. ex: ["a", "b"]
-  """
-  locations_list = [i for i in locations_list if i]
-  configs = [i for i in configs if i]
+	"""
+	Args:
+		- List configs: List of Cloud Dataproc cluster config files path in GCS.
+		- List locations_list: List of zones letters to choose from to create a
+			Cloud Dataproc cluster in the JupyterHub region. ex: ["a", "b"]
+	"""
+	locations_list = [i for i in locations_list if i]
+	configs = [i for i in configs if i]
 
-  html_config = '''
-  <section class="form-section">
-  <div class="form-group"> <label for="cluster_type">Cluster's configuration</label>
-  <select class="form-control" name="cluster_type">\n'''
-  for config in configs:
-    name = ".".join(config.split("/")[-1].split(".")[:-1])
-    html_config += f'''\t<option value="{config}">{name}</option>\n'''
-  html_config += '''</select></div>'''
+	# Cluster configuration
+	html_config = f'''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="cluster_type"
+				value="{configs[0]}"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text"></span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label"
+							>Cluster's configuration</span
+						>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+		<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+			<ul class="mdc-list">'''
 
-  html_zone = '''<div class="form-group">
-  <label for="cluster_zone">Zone</label>
-  <select class="form-control" name="cluster_zone">\n'''
+	for config in configs:
+		name = ".".join(config.split("/")[-1].split(".")[:-1])
+		html_config += f'''
+			<li class="mdc-list-item" data-value="{config}">
+				<span class="mdc-list-item__text">{name}</span>
+			</li>'''
 
-  html_zone_options = []
-  for zone_letter in locations_list:
-    location = f"{jupyterhub_region}-{zone_letter}"
-    html_zone_options.append(
-        f'''\t<option value="{location}">{location}</option>\n''')
+	html_config += '''
+		</ul>
+		</div>
+		</div>
+		<br />
+		<br />'''
 
-  html_zone += "".join(html_zone_options)
-  html_zone += '''</select></div></section>'''
+	# Zone configuration
+	html_zone = f'''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="cluster_zone"
+				value="{jupyterhub_region}-{locations_list[0]}"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text"></span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label"
+							>Zone</span
+						>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+		<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+			<ul class="mdc-list">'''
 
-  return html_config + "\n" + html_zone
+	for zone_letter in locations_list:
+		location = f"{jupyterhub_region}-{zone_letter}"
+		html_zone += f'''
+			<li class="mdc-list-item" data-value="{location}">
+				<span class="mdc-list-item__text">{location}</span>
+			</li>'''
 
+	html_zone += '''
+		</ul>
+		</div>
+		</div>
+		<br />
+		<br />'''
+
+	return html_config + "\n" + html_zone
 
 def get_custom_cluster_html_form(autoscaling_policies, node_types):
-  autoscaling_policies = [i for i in autoscaling_policies if i]
-  node_types = [i for i in node_types if i]
+	autoscaling_policies = [i for i in autoscaling_policies if i]
+	node_types = [i for i in node_types if i]
 
-  head_html = """
-  <a href="javascript:void(0);" id="customizationBtn">
-    <i class="fa fa-angle-double-down" aria-hidden="true"></i>
-    Customize your cluster
-  </a>
-  <div id="formcustomization" class="form-section" style="display: none;">
-  <input id="is_custom_cluster" name="custom_cluster" value="" type="hidden">"""
-  bottom_html = """</div>"""
-  js_code = """
-  <script>
-      $("#customizationBtn").click(function () {
-          $btn = $(this);
-          $("#is_custom_cluster").val('1');
-          $content = $("#formcustomization")
-          $content.toggle()
+	head_html = """
+	<a href="javascript:void(0);" id="customizationBtn">
+		<i class="fa fa-angle-double-down" aria-hidden="true"></i>
+		Customize your cluster
+	</a>
+	<div id="formcustomization" class="form-section" style="display: none;">
+	<input id="is_custom_cluster" name="custom_cluster" value="" type="hidden">"""
+	bottom_html = """</div>"""
+	js_code = """
+	<script>
+			$("#customizationBtn").click(function () {
+					$btn = $(this);
+					$("#is_custom_cluster").val('1');
+					$content = $("#formcustomization")
+					$content.toggle()
 
-          $("i:first-child").toggleClass('fa-angle-double-down');
-          $("i:first-child").toggleClass('fa-angle-double-up');
-      });
-  </script>
-  """
+					$("i:first-child").toggleClass('fa-angle-double-down');
+					$("i:first-child").toggleClass('fa-angle-double-up');
+			});
+	</script>
+	"""
 
-  html_autoscaling_policy = ""
-  if autoscaling_policies:
-    html_autoscaling_policy += '''<div class="form-group">
-            <label for="autoscaling_policy">Autoscaling Policy</label>
-            <select name="autoscaling_policy" class="form-control">
-            <option value="">None</option>'''
-    for i in autoscaling_policies:
-      html_autoscaling_policy += f'<option value="{i}">{i}</option>'
-    html_autoscaling_policy += '''</select></div> '''
+	html_toggler_close = '''
+		</div>
+		</div>'''
 
-  html_pip_packages = """<div class="form-group">
-        <label for="pip_packages">Install the following pip packages</label>
-        <input name="pip_packages" class="form-control" placeholder="Example: 'pandas==0.23.0 scipy==1.1.0'"
-              value=""></input>
-    </div>"""
+	html_toggler = '''
+		<div class="jupyter-cluster-customization-zone">
+			<div class="jupyter-cluster-customization-zone__top">
+				<button
+					id="jupyter-cluster-customization-zone-toggler"
+					class="mdc-button"
+					aria-pressed="false"
+				>
+					<div class="mdc-button__ripple"></div>
+					<i class="material-icons mdc-button__icon" aria-hidden="true"
+						>add</i
+					>
+					<span class="mdc-button__label">Customize your cluster</span>
+				</button>
+			</div>
+			<br />
+			<br />
+			<div
+				id="jupyter-cluster-customization-zone-wrapper"
+				class="jupyter-cluster-customization-zone__content"
+				hidden
+			>
+				<input
+					id="custom-cluster"
+					name="custom_cluster"
+					value="" type="hidden"
+				/>'''
 
-  html_condo_packages = """<div class="form-group">
-      <label for="condo_packages">Install the following condo packages</label>
-      <input name="condo_packages" class="form-control" placeholder="Example: 'scipy=1.1.0 tensorflow'"
-            value=""></input>
-  </div>"""
+	# Autoscaling policies configuration
+	html_autoscaling_policy = ''
+	if autoscaling_policies:
+		html_autoscaling_policy = f'''
+			<div class="mdc-select jupyter-select mdc-select--outlined">
+				<input
+					type="hidden"
+					name="autoscaling_policy"
+					value="{autoscaling_policies[0]}"
+				/>
+				<div class="mdc-select__anchor">
+					<span class="mdc-select__selected-text"></span>
+					<span class="mdc-select__dropdown-icon">
+						<svg
+							width="10px"
+							height="5px"
+							viewBox="7 10 10 5"
+							focusable="false"
+						>
+							<polygon
+								class="mdc-select__dropdown-icon-inactive"
+								stroke="none"
+								fill-rule="evenodd"
+								points="7 10 12 15 17 10"
+							></polygon>
+							<polygon
+								class="mdc-select__dropdown-icon-active"
+								stroke="none"
+								fill-rule="evenodd"
+								points="7 15 12 10 17 15"
+							></polygon>
+						</svg>
+					</span>
+					<span class="mdc-notched-outline">
+						<span class="mdc-notched-outline__leading"></span>
+						<span class="mdc-notched-outline__notch">
+							<span class="mdc-floating-label"
+								>Zone</span
+							>
+						</span>
+						<span class="mdc-notched-outline__trailing"></span>
+					</span>
+				</div>
+			<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+				<ul class="mdc-list">'''
 
-  html_internal_ip_only = """<div class="form-group">
-    <label for="internal_ip_only">Internal IP only</label>
-    <input name="internal_ip_only" type="checkbox"></input>
-  </div>"""
+		for policy in autoscaling_policies:
+			html_autoscaling_policy += f'''
+				<li class="mdc-list-item" data-value="{policy}">
+					<span class="mdc-list-item__text">{policy}</span>
+				</li>'''
 
-  html_master_type = ""
-  if node_types:
-    html_master_type += """<div class="form-group">
-        <label for="master_node_type">Master machine type</label>
-        <select class="form-control" name="master_node_type">"""
-    html_master_type += '''<option value="">Default</option>'''
-    for t in node_types:
-      html_master_type += f'''<option value="{t}">{t}</option>'''
-    html_master_type += "</select></div>"
+		html_autoscaling_policy += '''
+			</ul>
+			</div>
+			</div>
+			<br />
+			<br />'''
 
-  html_master_disk_type = ""
-  html_master_disk_type += """<div class="form-group">
-      <label for="master_disk_type">Master disk type</label>
-      <select class="form-control" name="master_disk_type">"""
-  html_master_disk_type += '''<option value="">pd-standard</option>
-      <option value="">pd-ssd</option>'''
-  html_master_disk_type += "</select></div>"
+	html_pip_packages = '''
+		<label
+		class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+	>
+		<span class="mdc-notched-outline">
+			<span class="mdc-notched-outline__leading"></span>
+			<span class="mdc-notched-outline__notch">
+				<span class="mdc-floating-label" id="pip_packages"
+					>Install the following pip packages</span
+				>
+			</span>
+			<span class="mdc-notched-outline__trailing"></span>
+		</span>
+		<input
+			type="text"
+			class="mdc-text-field__input"
+			name="pip_packages"
+			aria-labelledby="pip_packages"
+		/>
+	</label>
+	<div class="mdc-text-field-helper-line">
+		<div class="mdc-text-field-helper-text" aria-hidden="true">
+			Example: 'pandas==0.23.0 scipy==1.1.0'
+		</div>
+	</div>
+	<br />'''
 
-  html_master_disc = """<div class="form-group">
-      <label for="master_node_disc_size">Master disk size</label>
-      <input name="master_node_disc_size" class="form-control" placeholder="default"
-            value=""></input>
-  </div>"""
+	html_condo_packages = '''
+			<label
+				class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+			>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label" id="condo_packages"
+							>Install the following condo packages</span
+						>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+				<input
+					type="text"
+					class="mdc-text-field__input"
+					name="condo_packages"
+					aria-labelledby="condo_packages"
+				/>
+			</label>
+			<div class="mdc-text-field-helper-line">
+				<div class="mdc-text-field-helper-text" aria-hidden="true">
+					Example: 'scipy=1.1.0 tensorflow'
+				</div>
+			</div>
+			<br />
+			<br />
+			<hr class="jupyter-hr" />
+			<br />
+			<br />'''
 
-  html_worker_type = ""
-  if node_types:
-    html_worker_type += """<div class="form-group">
-        <label for="worker_node_type">Workers machine type</label>
-        <select class="form-control" name="worker_node_type">"""
-    html_worker_type += '''<option value="">Default</option>'''
-    for t in node_types:
-      html_worker_type += f'''<option value="{t}">{t}</option>'''
-    html_worker_type += "</select></div>"
+	html_master_base = '''
+		<h2 class="jupyter-form__group-title">Master node</h2>
+		<br />'''
 
-  html_worker_disk_type = ""
-  html_worker_disk_type += """<div class="form-group">
-      <label for="worker_disk_type">Worker disk type</label>
-      <select class="form-control" name="worker_disk_type">"""
-  html_worker_disk_type += '''<option value="">pd-standard</option>
-      <option value="">pd-ssd</option>'''
-  html_worker_disk_type += "</select></div>"
+	html_master_type = f'''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="master_node_type"
+				value="{node_types[0]}"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text"></span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label"
+							>Machine type</span
+						>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+		<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+			<ul class="mdc-list">'''
 
-  html_worker_disc = """<div class="form-group">
-      <label for="worker_node_disc_size">Worker disc size</label>
-      <input name="worker_node_disc_size" class="form-control" placeholder="default"
-            value=""></input>
-  </div>"""
+	for type in node_types:
+		html_master_type += f'''
+			<li class="mdc-list-item" data-value="{type}">
+				<span class="mdc-list-item__text">{type}</span>
+			</li>'''
 
-  html_worker_amount = """<div class="form-group">
-      <label for="worker_node_amount">Amount of workers</label>
-      <input name="worker_node_amount" class="form-control" placeholder="default"
-            value=""></input>
-  </div>"""
+	html_master_type += '''
+		</ul>
+		</div>
+		</div>
+		<br />
+		<br />'''
 
-  html_custom_labels = """<div class="form-group">
-      <label for="custom_labels">User defined labels</label>
-      <input name="custom_labels" class="form-control" placeholder="key1:value1,key2:value2"
-            value=""></input>
-  </div>"""
+	html_master_disk_type = '''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="master_disk_type"
+				value="pd-standard"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text"></span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label">Primary disk type</span>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+			<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+				<ul class="mdc-list">
+					<li class="mdc-list-item" data-value="pd-standard">
+						<span class="mdc-list-item__text">Standard Persistent Disk</span>
+					</li>
+					<li class="mdc-list-item" data-value="pd-ssd">
+						<span class="mdc-list-item__text">SSD Persistent Disk</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<br />
+		<br />'''
 
-  html_hive_settings = """<div class="form-group">
-      <label for="hive_host">Hive Metastore host</label>
-      <input name="hive_host" class="form-control" placeholder="" value=""></input>
-  </div><div class="form-group">
-      <label for="hive_db">Hive Metastore database</label>
-      <input name="hive_db" class="form-control" placeholder="" value=""></input>
-  </div><div class="form-group">
-      <label for="hive_user">Hive Metastore user name</label>
-      <input name="hive_user" class="form-control" placeholder="" value=""></input>
-  </div><div class="form-group">
-      <label for="hive_passwd">Hive Metastore password</label>
-      <input name="hive_passwd" class="form-control" placeholder="" value=""></input>
-  </div>"""
+	html_master_disk_size = '''
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="master_disk_size"
+						>Master disk size</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="master_disk_size"
+				aria-labelledby="master_disk_size"
+			/>
+		</label>
+		<br />
+		<br />
+		<hr class="jupyter-hr" />
+		<br />
+		<br />'''
 
-  body = "\n".join([
-      html_autoscaling_policy,
-      html_pip_packages,
-      html_condo_packages,
-      html_internal_ip_only,
-      html_master_type,
-      html_master_disk_type,
-      html_master_disc,
-      html_worker_type,
-      html_worker_disk_type,
-      html_worker_disc,
-      html_worker_amount,
-      html_custom_labels,
-      html_hive_settings
-  ])
+	html_worker_base = '''
+		<h2 class="jupyter-form__group-title">Worker nodes</h2>
+		<br />'''
 
-  return head_html + js_code + body + bottom_html
+	html_worker_type = f'''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="worker_node_type"
+				value="{node_types[0]}"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text"></span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label"
+							>Machine type</span
+						>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+		<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+			<ul class="mdc-list">'''
+
+	for type in node_types:
+		html_worker_type += f'''
+			<li class="mdc-list-item" data-value="{type}">
+				<span class="mdc-list-item__text">{type}</span>
+			</li>'''
+
+	html_worker_type += '''
+		</ul>
+		</div>
+		</div>
+		<br />
+		<br />'''
+
+	html_worker_disk_type = '''
+		<div class="mdc-select jupyter-select mdc-select--outlined">
+			<input
+				type="hidden"
+				name="worker_disk_type"
+				value="pd-standard"
+			/>
+			<div class="mdc-select__anchor">
+				<span class="mdc-select__selected-text">pd-standard</span>
+				<span class="mdc-select__dropdown-icon">
+					<svg
+						width="10px"
+						height="5px"
+						viewBox="7 10 10 5"
+						focusable="false"
+					>
+						<polygon
+							class="mdc-select__dropdown-icon-inactive"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 10 12 15 17 10"
+						></polygon>
+						<polygon
+							class="mdc-select__dropdown-icon-active"
+							stroke="none"
+							fill-rule="evenodd"
+							points="7 15 12 10 17 15"
+						></polygon>
+					</svg>
+				</span>
+				<span class="mdc-notched-outline">
+					<span class="mdc-notched-outline__leading"></span>
+					<span class="mdc-notched-outline__notch">
+						<span class="mdc-floating-label">Primary disk type</span>
+					</span>
+					<span class="mdc-notched-outline__trailing"></span>
+				</span>
+			</div>
+			<div class="mdc-select__menu mdc-menu mdc-menu-surface">
+				<ul class="mdc-list">
+					<li class="mdc-list-item" data-value="pd-standard">
+						<span class="mdc-list-item__text">Standard Persistent Disk</span>
+					</li>
+					<li class="mdc-list-item" data-value="pd-ssd">
+						<span class="mdc-list-item__text">SSD Persistent Disk</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<br />
+		<br />'''
+
+	html_worker_disk_size = '''
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="worker_disk_size"
+						>Master disk size</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="worker_disk_size"
+				aria-labelledby="worker_disk_size"
+			/>
+		</label>
+		<br />
+		<br />'''
+
+	html_worker_amount = '''
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="worker_node_amount"
+						>Number of worker nodes</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="worker_node_amount"
+				aria-labelledby="worker_node_amount"
+			/>
+		</label>
+		<br />
+		<br />
+		<hr class="jupyter-hr" />
+		<br />
+		<br />'''
+
+	html_adv_base = '''
+		<h2 class="jupyter-form__group-title">Advanced</h2>
+		<br />'''
+
+	html_internal_ip_only = '''
+		<div class="mdc-form-field">
+			<div class="mdc-checkbox">
+				<input
+					type="checkbox"
+					class="mdc-checkbox__native-control"
+					id="internal_ip_only"
+					name="internal_ip_only"
+				/>
+				<div class="mdc-checkbox__background">
+					<svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24">
+						<path
+							class="mdc-checkbox__checkmark-path"
+							fill="none"
+							d="M1.73,12.91 8.1,19.28 22.79,4.59"
+						/>
+					</svg>
+					<div class="mdc-checkbox__mixedmark"></div>
+				</div>
+				<div class="mdc-checkbox__ripple"></div>
+			</div>
+			<label for="internal_ip_only">Configure all instances to have only internal IP addresses.</label>
+		</div>
+		<br />
+		<br />'''
+
+	html_custom_labels = '''
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="custom_labels"
+						>User defined labels</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="custom_labels"
+				aria-labelledby="custom_labels"
+			/>
+		</label>
+		<div class="mdc-text-field-helper-line">
+			<div class="mdc-text-field-helper-text" aria-hidden="true">
+				Example: 'key1:value1,key2:value2'
+			</div>
+		</div>
+		<br />'''
+
+	html_hive_settings = '''
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="hive_host"
+						>Hive Metastore host</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="hive_host"
+				aria-labelledby="hive_host"
+			/>
+		</label>
+		<br />
+		<br />
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="hive_db"
+						>Hive Metastore database</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="hive_db"
+				aria-labelledby="hive_db"
+			/>
+		</label>
+		<br />
+		<br />
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="hive_user"
+						>Hive Metastore user name</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="hive_user"
+				aria-labelledby="hive_user"
+			/>
+		</label>
+		<br />
+		<br />
+		<label
+			class="mdc-text-field jupyter-text-field mdc-text-field--outlined"
+		>
+			<span class="mdc-notched-outline">
+				<span class="mdc-notched-outline__leading"></span>
+				<span class="mdc-notched-outline__notch">
+					<span class="mdc-floating-label" id="hive_passwd"
+						>Hive Metastore password</span
+					>
+				</span>
+				<span class="mdc-notched-outline__trailing"></span>
+			</span>
+			<input
+				type="text"
+				class="mdc-text-field__input"
+				name="hive_passwd"
+				aria-labelledby="hive_passwd"
+			/>
+		</label>
+		<br />
+		<br />'''
+
+	body = "\n".join([
+			html_autoscaling_policy,
+			html_pip_packages,
+			html_condo_packages,
+			html_master_base,
+			html_master_type,
+			html_master_disk_type,
+			html_master_disk_size,
+			html_worker_base,
+			html_worker_type,
+			html_worker_disk_type,
+			html_worker_disk_size,
+			html_worker_amount,
+			html_adv_base,
+			html_internal_ip_only,
+			html_custom_labels,
+			html_hive_settings
+	])
+
+	return html_toggler + body + html_toggler_close
