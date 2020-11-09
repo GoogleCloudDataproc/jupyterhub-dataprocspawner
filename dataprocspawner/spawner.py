@@ -16,7 +16,6 @@
 import json
 import re
 import os
-import time
 import random
 import string
 import proto
@@ -24,6 +23,7 @@ import yaml
 import math
 import asyncio
 from datetime import datetime as dt
+from types import SimpleNamespace
 
 from google.protobuf.json_format import MessageToDict
 from google.api_core import exceptions
@@ -33,15 +33,20 @@ from google.cloud.dataproc_v1beta2 import (
 from google.cloud.dataproc_v1beta2.types.shared import Component
 
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import ClusterControllerGrpcTransport
-from jupyterhub.spawner import Spawner
 from traitlets import List, Unicode, Dict, Bool
 
+from dataprocspawner.spawnable import DataprocHubServer
+from dataprocspawner.customize_cluster import (
+    get_base_cluster_html_form, get_custom_cluster_html_form)
 from .customize_cluster import (get_base_cluster_html_form,
                                 get_custom_cluster_html_form,
                                 get_html_top,
                                 get_html_bottom)
 
 from async_generator import async_generator, yield_, aclosing
+
+from jupyterhub import orm
+from jupyterhub.spawner import Spawner
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -325,7 +330,8 @@ class DataprocSpawner(Spawner):
 
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
-    self.progress_bar = 0
+    self.component_gateway_url = None
+    self.progressor = SimpleNamespace(bar=0, logging=set(), start='')
 
     if mock:
       # Mock the API
@@ -371,21 +377,36 @@ class DataprocSpawner(Spawner):
         == ClusterStatus.State.DELETING):
       raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
 
-    elif await self.exists(self.clustername()):
-      self.log.warning(
-        (f'Cluster named {self.clustername()} already exists. If this is not a '
-        'server that you spawned before, the next page will fail.'))
-
-    else:
-      if self.gcs_user_folder:
-        self.create_example_notebooks()
+    if not await self.exists(self.clustername()):
+      self.create_example_notebooks()
       self.operation = await self.create_cluster()
 
-      start_notebook_cmd = self.cmd + self.get_args()
-      start_notebook_cmd = ' '.join(start_notebook_cmd)
-      self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
+    self.component_gateway_url = await self.get_cluster_notebook_endpoint(
+        self.clustername())
 
-    return (self.get_dataproc_master_fqdn(), self.port)
+    start_notebook_cmd = self.cmd + self.get_args()
+    start_notebook_cmd = ' '.join(start_notebook_cmd)
+    self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
+
+    # Server needs default values even if user.py>spawn uses dynamic ones.
+    orm_server = orm.Server(
+        proto='https',
+        ip=self.component_gateway_url,
+        port=443,
+        base_url=self.user.base_url,
+        cookie_name='cookie')
+    cluster_data = {
+      'cluster_name': self.clustername(),
+      'cluster_project': self.project,
+      'cluster_region': self.region,
+    }
+    self._server = DataprocHubServer(
+        dataproc_client=self.dataproc_client,
+        cluster_data=cluster_data,
+        connect_url=self.component_gateway_url, # Forces self.url to return this
+        orm_server=orm_server)
+
+    return self.component_gateway_url
 
   async def stop(self):
     """ Stops an existing cluster """
@@ -407,37 +428,41 @@ class DataprocSpawner(Spawner):
     elif status == ClusterStatus.State.ERROR:
       return 1
     elif status == ClusterStatus.State.CREATING:
-      self.log.info(f'{self.clustername()} is creating')
+      self.log.info(f'{self.clustername()} is creating.')
       return None
     elif status in (ClusterStatus.State.RUNNING, ClusterStatus.State.UPDATING):
-      self.log.info(f'{self.clustername()} is up and running')
+      self.log.info(f'{self.clustername()} is up and running.')
       return None
 
   @async_generator
   async def _generate_progress(self):
     """Private wrapper of progress generator
 
-    This method is always an async generator and will always yield at least one event.
+    This method is always an async generator and will always yield at least one
+    event. Note that adding `ready: True` is ignored as it is set directly in
+    users.py based on spawner.ready.
     """
     if not self._spawn_pending or not self.operation:
       self.log.warning(
           "Spawn not pending, can't generate progress for %s", self._log_name)
       return
 
+    self.log.debug('# Running _generate_progress')
+
     operation_id = self.operation.operation.name.split('/')[-1]
     cluster_uuid = self.operation.metadata.cluster_uuid
-    operation_done = False
+    message_uuid = f'Operation {operation_id} for cluster uuid {cluster_uuid}'
 
-    try:
-      operation_done = self.operation.done()
-    except exceptions.GoogleAPICallError as e:
-      self.log.warning(f'Error operation.done(): {e.message}')
-
-    if not operation_done:
-      await yield_({'progress': self.progress_bar, 'message': 'Server requested'})
-      self.progress_bar = max(self.progress_bar, 5)
-      message = (f'Operation {operation_id} for cluster uuid {cluster_uuid}')
-      await yield_({'progress': self.progress_bar, 'message': message})
+    if not self.progressor.logging:
+      yields_start = (
+        {'progress': 0, 'message': 'Server requested.'},
+        {'progress': 5, 'message': message_uuid},
+      )
+      self.progressor.bar = 5
+      self.progressor.logging.add('yields_start')
+      self.progressor.start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+      for y in yields_start:
+        await yield_(y)
 
     async with aclosing(self.progress()) as progress:
       async for event in progress:
@@ -467,7 +492,6 @@ class DataprocSpawner(Spawner):
       raise RuntimeError(msg_existing)
 
     resources = [f'projects/{self.project}']
-    log_start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
                    'runBuiltinInitializationActions','awaitNameNodeSafeModeExit',
                    'runCustomInitializationActions'}
@@ -481,10 +505,9 @@ class DataprocSpawner(Spawner):
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
       f' AND jsonPayload.method=({filters_methods})'
     )
-    filters = f'{filters_base} AND timestamp>="{log_start}"'
-    self.log.info(f'Filters are: {filters}')
+    filters = f'{filters_base} AND timestamp>="{self.progressor.start}"'
+    self.log.debug(f'Filters are: {filters}')
 
-    log_shown = set()
     operation_done = False
     while not operation_done:
       try:
@@ -496,27 +519,24 @@ class DataprocSpawner(Spawner):
         await asyncio.sleep(10)
 
       try:
-        self.log.info(f'At progress {self.progress_bar}, fetching logs if any.')
-        entries = self.logging_client.list_log_entries(resources, filter_=filters)
+        self.log.info(f'At progress {self.progressor.bar}, fetching logs if any.')
+
+        for entry in self.logging_client.list_log_entries(resources, filter_=filters):
+          if entry.insert_id not in self.progressor.logging:
+            payload = MessageToDict(entry.json_payload)
+            message = f'{payload.get("method")}: {payload.get("message")}'
+            self.progressor.bar += math.ceil((90 - self.progressor.bar) / 4)
+            self.log.debug(f'progress: {self.progressor.bar}, message: {message}')
+            await yield_({'progress': self.progressor.bar, 'message': message})
+            self.progressor.logging.add(entry.insert_id)
+
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
-        await yield_({'progress': self.progress_bar, 'message': e.message})
-        continue
-      except ValueError:
-        await yield_({'progress': self.progress_bar, 'message': 'ValueError'})
+        await yield_({'progress': self.progressor.bar, 'message': e.message})
         continue
 
-      # Reads all the filtered logs since the beginning of spawns and filters
-      # out the ones that were processed in a previous `while` loop. This method
-      # simplifies code vs using a loop with sequential timestamps. The latter
-      # would be useful if `entries` was a big list which is not the case here.
-      for entry in entries:
-        if entry.insert_id not in log_shown:
-          payload = MessageToDict(entry.json_payload)
-          message = f'{payload.get("method")}: {payload.get("message")}'
-          self.progress_bar += math.ceil((90 - self.progress_bar) / 4)
-          self.log.info(f'progress: {self.progress_bar}, 'f'message: {message}')
-          await yield_({'progress': self.progress_bar, 'message': message})
-          log_shown.add(entry.insert_id)
+      except ValueError:
+        await yield_({'progress': self.progressor.bar, 'message': 'ValueError'})
+        continue
 
     if self.operation.metadata.status.inner_state == 'FAILED':
       await yield_({
@@ -527,9 +547,8 @@ class DataprocSpawner(Spawner):
     if self.operation.metadata.status.inner_state == 'DONE':
       status = await self.get_cluster_status(self.clustername())
       if status == ClusterStatus.State.RUNNING:
-        self.log.info('progress(): Sets progress to 100 for spawning redirect.')
         await yield_({
-          'progress': 100,
+          'progress': 95,
           'message': 'Cluster successfully created'})
 
   ##############################################################################
@@ -596,7 +615,10 @@ class DataprocSpawner(Spawner):
     return self._options_form_default()
 
   def options_from_form(self, formdata):
-    """ Returns the selected option selected by the user. """
+    """ Returns the selected option selected by the user.
+
+    If authuser is in the GET url, it also sends the form.
+    """
     self.log.info(f'formdata is {formdata}')
 
     options = {}
@@ -605,39 +627,33 @@ class DataprocSpawner(Spawner):
         value = value[0]
       else:
         value = None
-
       if key == 'cluster_zone':
         self.zone = value or self.zone
-
       options[key] = value
-
-    self.log.info(f"""User selected cluster: {options.get('cluster_type')}
-          and zone: {self.zone} in region {self.region}.""")
-
     return options
 
 ################################################################################
 # Overwrite
 ################################################################################
   def get_env(self):
-    """ Overwrites the original function to get a new Hub URL accessible by
-    Dataproc when JupyterHub runs on an AI Notebooks which by default would
-    return a local address otherwise.
+    """ Sets env variables for spawner server.
+
+    Overwrites the original function to overwrite some values and pass them to
+    the Dataproc cluster through dataproc:jupyter.hub.env. Most JupyterHub values
+    are now obsolete due to the redirect to prevent Dataproc cluster to be able
+    to communicate back to JupyterHub.
     """
     env = super().get_env()
-
-    # Sets in the jupyterhub_config related to ai notebook.
-    if 'NEW_JUPYTERHUB_API_URL' in env:
-      env['JUPYTERHUB_API_URL'] = env['NEW_JUPYTERHUB_API_URL']
-      env['JUPYTERHUB_ACTIVITY_URL'] = url_path_join(
-          env['NEW_JUPYTERHUB_API_URL'],
-          'users',
-          # tolerate mocks defining only user.name
-          getattr(self.user, 'escaped_name', self.user.name),
-          'activity',
-      )
-
-    self.log.info(f'env is {env}')
+    remove_env =  [
+      'JUPYTERHUB_API_TOKEN',
+      'JPY_API_TOKEN',
+      'JUPYTERHUB_CLIENT_ID',
+      'JUPYTERHUB_OAUTH_CALLBACK_URL',
+      'JUPYTERHUB_API_URL',
+    ]
+    for e in remove_env:
+      env[e] = ''
+    self.log.debug(f'env is {env}')
     return env
 
 ################################################################################
@@ -673,7 +689,8 @@ class DataprocSpawner(Spawner):
     return sc
 
   def read_gcs_file(self, file_path) -> dict:
-    file_path = file_path.replace('gs://', '').replace('//', '/').split('/')
+    if file_path:
+      file_path = file_path.replace('gs://', '').replace('//', '/').split('/')
     bn = file_path[0]
     fp = '/'.join(file_path[1:])
 
@@ -728,6 +745,8 @@ class DataprocSpawner(Spawner):
     return config_dict
 
   def create_example_notebooks(self):
+    if not self.gcs_user_folder:
+      return
     default_path = self.default_notebooks_gcs_path
     user_folder = self.gcs_user_folder
     if not default_path or not user_folder:
@@ -737,8 +756,9 @@ class DataprocSpawner(Spawner):
     bucket_name, folder_name = self._split_gcs_path(default_path)
     destination_bucket_name, destination_folder_name = self._split_gcs_path(user_folder)
     destination_folder_name += self.default_notebooks_folder
-    self.log.debug(f"""Copy from {bucket_name}/{folder_name} to
-        {destination_bucket_name}/{destination_folder_name}""")
+    self.log.debug(
+        f'Copy from {bucket_name}/{folder_name} to '
+        f'{destination_bucket_name}/{destination_folder_name}')
 
     source_bucket = storage_client.bucket(bucket_name)
     blobs = storage_client.list_blobs(bucket_name, prefix=folder_name)
@@ -757,7 +777,6 @@ class DataprocSpawner(Spawner):
 
     # Dumps the environment variables, including those generated after init.
     # (ex. JUPYTERHUB_API_TOKEN)
-    # Manually set PATH for testing purposes
     self.temp_env = self.get_env()
     self.temp_env['PATH'] = '/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' # pylint: disable=line-too-long
     self.env_str = json.dumps(self.temp_env)
@@ -765,29 +784,31 @@ class DataprocSpawner(Spawner):
 
     # Even if an admin provides a definition, ensures it is properly formed.
     self.cluster_definition = self._build_cluster_config(self.cluster_data)
-
     cluster = await self._create_cluster(self.cluster_definition)
     return cluster
 
   async def _create_cluster(self, cluster_data, try_count=3):
-    """ Method implements custom retry functionality in order to change zone before each recall """
+    """ Implements custom retry functionality in order to change zone before
+    each recall. """
     while True:
       try:
-        return self.dataproc_client.create_cluster(
-            project_id=self.project,
-            region=self.region,
-            cluster=cluster_data)
+        # Prevents having a ERROR:asyncio:Task exception was never retrieved.
+        await asyncio.sleep(0)
+        return self.dataproc_client.create_cluster(project_id=self.project,
+                                                   region=self.region,
+                                                   cluster=cluster_data)
       except (exceptions.PermissionDenied,
               exceptions.TooManyRequests,
               exceptions.ResourceExhausted) as e:
 
-        if await self.get_cluster_status(self.clustername()) == ClusterStatus.State.DELETING:
+        if (await self.get_cluster_status(self.clustername())
+            == ClusterStatus.State.DELETING):
           self.log.warning(f'Cluster {self.clustername()} pending deletion.')
 
         try_count -= 1
         if try_count > 0:
           cluster_data = self.change_zone_in_cluster_cfg(cluster_data)
-          time.sleep(3)
+          await asyncio.sleep(3)
           continue
         raise e
 
@@ -809,11 +830,23 @@ class DataprocSpawner(Spawner):
       else:
         new_zone = current_zone_tmp
 
-    cluster_data['config']['gce_cluster_config']['zone_uri'] = f'https://www.googleapis.com/' \
-                                                              f'compute/v1/projects/' \
-                                                              f'{self.project}/zones/' \
-                                                              f'{new_zone}'
+    cluster_data['config']['gce_cluster_config']['zone_uri'] = (
+        'https://www.googleapis.com/compute/v1/projects/'
+        f'{self.project}/zones/{new_zone}')
     return cluster_data
+
+  async def get_cluster_notebook_endpoint(self, clustername):
+    """ Extracts Component Gateway endpoint for Jupyter on the cluster.
+
+    Returns:
+      (str) Component Gateway URL without the trailing `/`
+    """
+    cluster = await self.get_cluster(clustername)
+    # TODO(mayran): Possibly deprecate this and force to JupyterLab.
+    if cluster is not None:
+      endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
+      return cluster.config.endpoint_config.http_ports[endpoint_name].rstrip('/')
+    return None
 
   async def get_cluster_status(self, clustername):
     cluster = await self.get_cluster(clustername)
@@ -831,6 +864,7 @@ class DataprocSpawner(Spawner):
           region=self.region,
           cluster_name=clustername)
     except exceptions.NotFound:
+      self.log.info('self.dataproc_client.get_cluster(): Exceptions Not Found')
       return None
 
 ################################################################################
@@ -896,8 +930,6 @@ class DataprocSpawner(Spawner):
     known to be affected by this behavior are present in the cluster config.
     If so, it changes their value from string to a Duration in YAML. Duration
     looks like {'seconds': 15, 'nanos': 0}. """
-    self.log.info('Converting durations for {data}')
-
     def to_sec(united):
       """ Converts a time string finishing by a time unit as the matching number
       of seconds. """
@@ -941,8 +973,6 @@ class DataprocSpawner(Spawner):
           'nanos': 0
       }
 
-    self.log.info('Converted durations are in {data}')
-
     return data.copy()
 
   def _check_uri_geo(self, uri, uri_geo_slice, expected_geo, trim_zone=False):
@@ -981,7 +1011,7 @@ class DataprocSpawner(Spawner):
     try:
       subminor_version = int(version.split('.')[2])
     except ValueError as e:
-      self.log.info('Failed to parse image version "%s": %s' % (image_version, e))
+      self.log.warning('Failed to parse image version "%s": %s' % (image_version, e))
       # Something weird is going on with image version format, fail open
       return True
 
@@ -992,15 +1022,18 @@ class DataprocSpawner(Spawner):
     # Unrecognized minor version, fail open
     return True
 
-  # Convert list of user defined labels to dictionary.
   def list_to_dict(self, rlist):
+    """ Converts list of user defined labels to dictionary. """
     return dict(map(lambda s: s.split(':'), rlist))
 
-  # Generate a fixed length random alphanumeric string of lower letters and digits
   def get_rand_string(self, length):
+    """ Generates a fixed length random alphanumeric string of lower letters
+    and digits.
+    """
     letters_and_digits = string.ascii_lowercase + string.digits
     rand_str = ''.join((random.choice(letters_and_digits) for i in range(length)))
     return rand_str
+
 
 ################################################################################
 # Cluster configuration
@@ -1175,7 +1208,8 @@ class DataprocSpawner(Spawner):
       # TODO(dingj) expose warnings somehow
       warnings = _validate_proto(cluster_data, Cluster)
       self.log.debug(f'Cluster config after cleaning was {cluster_data}')
-      self.log.info(f'Warnings from proto field validation were {warnings}')
+      if warnings:
+        self.log.info(f'Warnings from proto field validation were {warnings}')
 
       # Defines default values if some key is not exists
       cluster_data['config'].setdefault('gce_cluster_config', {})
@@ -1252,11 +1286,10 @@ class DataprocSpawner(Spawner):
     cluster_data['config']['software_config'].setdefault('properties', {})
 
     (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.args']) = self.args_str
+                 ['dataproc:jupyter.hub.args']) = self.args_str
     (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.env']) = self.env_str
-    (cluster_data['config']['software_config']['properties']
-     ['dataproc:jupyter.hub.enabled']) = 'true'
+                 ['dataproc:jupyter.hub.env']) = self.env_str
+
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
        ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
@@ -1264,12 +1297,14 @@ class DataprocSpawner(Spawner):
     if 'image_version' not in cluster_data['config']['software_config']:
       cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
-    if (cluster_data['config']
-        .setdefault('endpoint_config', {})
-        .setdefault('enable_http_port_access', False)):
-      if not self._validate_image_version_supports_component_gateway(
-          cluster_data['config']['software_config']['image_version']):
-        cluster_data['config']['endpoint_config']['enable_http_port_access'] = False
+    # Forces Component Gateway
+    if not self._validate_image_version_supports_component_gateway(
+        cluster_data['config']['software_config']['image_version']):
+      raise RuntimeError('Image version does not support Component Gateway.')
+
+    cluster_data['config']\
+        .setdefault('endpoint_config', {})\
+        .setdefault('enable_http_port_access', True)
 
     cluster_data['config']['software_config'].setdefault('optional_components', [])
 
