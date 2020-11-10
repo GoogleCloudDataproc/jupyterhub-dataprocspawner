@@ -559,7 +559,7 @@ class DataprocSpawner(Spawner):
     """
     base_html = get_base_cluster_html_form(
         self._list_gcs_files(self.dataproc_configs),
-        self.dataproc_locations_list.split(','),
+        self._validate_zones(self.region, self.dataproc_locations_list),
         self.region
     )
 
@@ -1026,6 +1026,28 @@ class DataprocSpawner(Spawner):
     letters_and_digits = string.ascii_lowercase + string.digits
     rand_str = ''.join((random.choice(letters_and_digits) for i in range(length)))
     return rand_str
+
+  def _validate_zones(self, region, zones):
+    '''
+      Checks if 'dataproc_locations_list' contains zones, relevant for the current region.
+      If variable is not defined or contains irrelevant zones only, then the user is free to use
+      all zones present in current region. Otherwise returns relevant zones only.
+    '''
+    command = f'gcloud compute zones list --filter="name~{region}" --format="value(name)"'
+    output = os.popen(command)
+    allowed_zones = []
+    result = []
+    for i in output:
+      i = i.replace('\n', '')[-1]
+      allowed_zones.append(i)
+    result = []
+    for zone in zones.split(','):
+      if zone in allowed_zones:
+        result.append(zone)
+    if len(result) == 0:
+      result = allowed_zones
+
+    return result
 
 
 ################################################################################
