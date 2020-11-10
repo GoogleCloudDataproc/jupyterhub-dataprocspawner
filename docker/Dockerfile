@@ -1,6 +1,22 @@
-FROM jupyterhub/jupyterhub:latest
+FROM gcr.io/deeplearning-platform-release/base-cpu
 
-# Install gcloud
+# Installs JupyterHub.
+RUN apt-get update \
+  && apt-get install -y \
+    vim \
+    node-gyp \
+    nodejs-dev \
+    libssl1.0-dev \
+    npm \
+    nodejs
+
+RUN pip install --upgrade pip \
+  && pip install --upgrade \
+    jupyterhub
+
+RUN npm install -g configurable-http-proxy
+
+# Installs gcloud.
 RUN apt-get update && apt-get install -y curl apt-transport-https ca-certificates gnupg \
   && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
   && echo "deb https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
