@@ -1,0 +1,25 @@
+{% extends "page.html" %}
+
+{% block main %}
+
+<div class="container">
+  {% block heading %}
+  <div class="row">
+    <div class="text-center">Checking Environment ...</h4>
+  </div>
+  {% endblock %}
+  <!-- <div class="row">
+      <a role="button" class="btn btn-primary" href="{{url}}">Spawn</a>
+  </div> -->
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript">
+require(["jquery"], function ($) {
+    console.log("{{ user }}")
+    window.location.replace("{{ next_url }}");
+});
+</script>
+{% endblock %}

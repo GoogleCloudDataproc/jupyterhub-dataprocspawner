@@ -571,6 +571,7 @@ class TestDataprocSpawner:
           'properties': {
             'dataproc:jupyter.hub.args': 'test-args-str',
             'dataproc:jupyter.hub.env': 'test-env-str',
+            'dataproc:jupyter.hub.menu.enabled': 'true',
             'dataproc:jupyter.notebook.gcs.dir': 'gs://users-notebooks/fake',
             'key-with-dash:UPPER_UPPER': '4000',
             'key-with-dash-too:UlowUlowUlow': '85196m',

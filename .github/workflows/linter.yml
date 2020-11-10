@@ -34,7 +34,7 @@ jobs:
           # Only run against changed files
           VALIDATE_ALL_CODEBASE: false
           # Don't lint tests
-          FILTER_REGEX_EXCLUDE: tests/.*
+          FILTER_REGEX_EXCLUDE: (tests/.*)|(docker/*)|(static/*)
           DEFAULT_BRANCH: master
           LINTER_RULES_PATH: .
           VALIDATE_PYTHON_FLAKE8: false

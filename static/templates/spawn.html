@@ -1,0 +1,33 @@
+{% extends "page.html" %}
+{% if announcement_spawn %}
+  {% set announcement = announcement_spawn %}
+{% endif %}
+
+{% block main %}
+
+<div class="container-fluid">
+  {% block heading %}
+  <div class="row ml-5">
+  <div class="row"></div>
+    <h1>Dataproc Options</h1>
+  </div>
+  {% endblock %}
+  <div class="row">
+    {% if for_user and user.name != for_user.name -%}
+      <p>Spawning server for {{ for_user.name }}</p>
+    {% endif -%}
+    {% if error_message -%}
+      <p class="spawn-error-msg text-danger">
+        Error: {{error_message}}
+      </p>
+    {% endif %}
+    <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
+      {{spawner_options_form | safe}}
+      <div>
+        <input type="submit" value="Start" class="btn btn-jupyter btn-ml-tb form-control">
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
