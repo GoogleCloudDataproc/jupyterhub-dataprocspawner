@@ -43,6 +43,7 @@ print(os.environ)
 
 # Spawner
 c.JupyterHub.spawner_class = 'dataprocspawner.DataprocSpawner'
+c.JupyterHub.proxy_class = 'redirect-proxy'
 c.DataprocSpawner.project = os.environ.get('PROJECT', '')
 c.DataprocSpawner.dataproc_configs = os.environ.get('DATAPROC_CONFIGS', '')
 c.DataprocSpawner.region = os.environ.get('JUPYTERHUB_REGION', '')
