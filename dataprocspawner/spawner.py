@@ -24,6 +24,7 @@ from datetime import datetime as dt
 from types import SimpleNamespace
 
 import proto
+import requests
 import yaml
 from async_generator import aclosing, async_generator, yield_
 from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
@@ -331,6 +332,21 @@ class DataprocSpawner(Spawner):
     self.operation = None
     self.component_gateway_url = None
     self.progressor = SimpleNamespace(bar=0, logging=set(), start='')
+
+    # Check if we have a notebooks proxy URL
+    self.hub_host = ''
+    if 'hub_host' in kwargs:
+      self.hub_host = kwargs.get('hub_host')
+    else:
+      try:
+        r = requests.get(
+            'http://metadata.google.internal/computeMetadata/v1/instance/attributes/proxy-url',
+            headers={'Metadata-Flavor': 'Google'})
+        r.raise_for_status()
+        self.hub_host = f'https://{r.text}/'
+        self.log.info(f'Got proxy url {r.text} from metadata')
+      except Exception as e:  ## pylint: disable=broad-except
+        self.log.info(f'Failed to get proxy url from metadata: {e}')
 
     if mock:
       # Mock the API
@@ -648,6 +664,21 @@ class DataprocSpawner(Spawner):
       env[e] = ''
     self.log.debug(f'env is {env}')
     return env
+
+  def get_args(self):
+    """Set arguments to pass to Jupyterhub-singleuser on the cluster.
+
+    Note that we don't call the superclass method, as we don't want to
+    set default args like port and ip.
+    """
+    args = []
+
+    if self.debug:
+      args.append('--debug')
+    args.append('--NotebookApp.hub_activity_interval=0')
+    args.append('--NotebookApp.hub_host={}'.format(self.hub_host))
+    args.extend(self.args)
+    return args
 
 ################################################################################
 # Custom Functions
@@ -1305,6 +1336,8 @@ class DataprocSpawner(Spawner):
                  ['dataproc:jupyter.hub.args']) = self.args_str
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.env']) = self.env_str
+    (cluster_data['config']['software_config']['properties']
+                 ['dataproc:jupyter.hub.menu.enabled']) = 'true'
 
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
