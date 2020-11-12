@@ -1,3 +1,17 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import requests
 import socket
@@ -6,21 +20,9 @@ from tornado import web
 
 from google.cloud import secretmanager_v1beta1 as secretmanager
 
-def access_secret_version(project_id, secret_id, version_id):
-  """
-  Accesses the payload for the given secret version if one exists. The version
-  can be a version number as a string (e.g. "5") or an alias (e.g. "latest").
-  """
-  client = secretmanager.SecretManagerServiceClient()
-  name = client.secret_version_path(project_id, secret_id, version_id)
-  response = client.access_secret_version(name)
-  payload = response.payload.data.decode('UTF-8')
-  return payload
-
-
 def is_true(boolstring: str):
   """ Converts an environment variables to a Python boolean. """
-  if boolstring.lower() in ("true", "1"):
+  if boolstring.lower() in ('true', '1'):
     return True
   return False
 
@@ -41,9 +43,18 @@ c.Spawner.port = 12345
 
 print(os.environ)
 
-# Spawner
+# JupyterHub (Port must be 8080 to meet Inverting Proxy requirements.)
 c.JupyterHub.spawner_class = 'dataprocspawner.DataprocSpawner'
 c.JupyterHub.proxy_class = 'redirect-proxy'
+c.JupyterHub.port = 8080
+
+# Authenticator
+from gcpproxiesauthenticator.gcpproxiesauthenticator import GCPProxiesAuthenticator
+c.JupyterHub.authenticator_class = GCPProxiesAuthenticator
+c.GCPProxiesAuthenticator.check_header = 'X-Inverting-Proxy-User-Id'
+c.GCPProxiesAuthenticator.template_to_render = 'welcome.html'
+
+# Spawner
 c.DataprocSpawner.project = os.environ.get('PROJECT', '')
 c.DataprocSpawner.dataproc_configs = os.environ.get('DATAPROC_CONFIGS', '')
 c.DataprocSpawner.region = os.environ.get('JUPYTERHUB_REGION', '')
@@ -53,7 +64,6 @@ c.DataprocSpawner.dataproc_locations_list = os.environ.get('DATAPROC_LOCATIONS_L
 c.DataprocSpawner.machine_types_list = os.environ.get('DATAPROC_MACHINE_TYPES_LIST', '')
 c.DataprocSpawner.cluster_name_pattern = os.environ.get('CLUSTER_NAME_PATTERN', 'dataprochub-{}')
 c.DataprocSpawner.allow_custom_clusters = is_true(os.environ.get('DATAPROC_ALLOW_CUSTOM_CLUSTERS', ''))
-# Support multiple environment variable names for the GCS notebooks path
 c.DataprocSpawner.gcs_notebooks = os.environ.get('GCS_NOTEBOOKS', '')
 if not c.DataprocSpawner.gcs_notebooks:
   c.DataprocSpawner.gcs_notebooks = os.environ.get('NOTEBOOKS_LOCATION', '')
@@ -72,9 +82,9 @@ idle_timeout = os.environ.get('IDLE_TIMEOUT', '1d')
 
 if (idle_job_path and idle_path):
   c.DataprocSpawner.idle_checker = {
-    "idle_job_path": idle_job_path,  # gcs path to https://github.com/blakedubois/dataproc-idle-check/blob/master/isIdleJob.sh
-    "idle_path": idle_path,          # gcs path to https://github.com/blakedubois/dataproc-idle-check/blob/master/isIdle.sh
-    "timeout": idle_timeout          # idle time after which cluster will be shutdown
+    'idle_job_path': idle_job_path,  # gcs path to https://github.com/blakedubois/dataproc-idle-check/blob/master/isIdleJob.sh
+    'idle_path': idle_path,          # gcs path to https://github.com/blakedubois/dataproc-idle-check/blob/master/isIdle.sh
+    'timeout': idle_timeout          # idle time after which cluster will be shutdown
   }
 
 ## End of common setup ##

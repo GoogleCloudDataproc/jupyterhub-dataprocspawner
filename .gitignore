@@ -8,4 +8,4 @@ build
 overwrite.sh
 tries/
 .prettierrc.js
-deploy_ain_example.sh
+deploy_ain.sh

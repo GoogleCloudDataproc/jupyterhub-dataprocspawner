@@ -21,26 +21,24 @@ VM_NAME=$3
 DOCKER_IMAGE="gcr.io/${PROJECT_ID}/dataprocspawner:gce"
 
 # gcloud builds submit does not support -f like docker build.
-cat <<EOT > ./examples/cloudbuild.yaml
+cat <<EOT > /tmp/cloudbuild-gce.yaml
 steps:
 - name: "gcr.io/cloud-builders/docker"
   args:
   - build
   - "--tag=${DOCKER_IMAGE}"
-  - "--file=./examples/docker/Dockerfile.example"
+  - "--file=./docker/Dockerfile"
   - .
 images:
 - ${DOCKER_IMAGE}
 EOT
 
-#gcloud --project "${PROJECT_ID}" builds submit -t "${DOCKER_IMAGE}" -f .
-gcloud --project "${PROJECT_ID}" builds submit --config=./examples/cloudbuild.yaml .
+gcloud --project "${PROJECT_ID}" builds submit --config=/tmp/cloudbuild-gce.yaml .
 
-gcloud beta compute instances create-with-container "${VM_NAME}" \
+gcloud compute instances create-with-container "${VM_NAME}" \
   --project "${PROJECT_ID}" \
   --container-image="${DOCKER_IMAGE}" \
-  --container-arg="--DataprocSpawner.project=${PROJECT_ID}" \
-  --container-arg="--DataprocSpawner.dataproc_configs=${CONFIGS_LOCATION}" \
+  --container-env="^|^PROJECT=${PROJECT_ID}|DATAPROC_CONFIGS=${CONFIGS_LOCATION}|DATAPROC_LOCATIONS_LIST=b,c" \
   --scopes=cloud-platform \
   --zone us-central1-a
 
@@ -48,5 +46,3 @@ gcloud compute instances describe "${VM_NAME}" \
   --project "${PROJECT_ID}" \
   --zone us-central1-a \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
-
-rm ./examples/cloudbuild.yaml

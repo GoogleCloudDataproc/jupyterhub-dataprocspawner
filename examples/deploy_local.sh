@@ -21,19 +21,23 @@ USER_EMAIL=$3
 PORT="${4:-8000}"
 DOCKER_IMAGE="hub:local"
 
+# Manages authentication for container
 mkdir -p /tmp/keys
 # cp ~/.config/gcloud/application_default_credentials.json /tmp/keys
 cp ~/.config/gcloud/legacy_credentials/"${USER_EMAIL}"/adc.json /tmp/keys/application_default_credentials.json
-
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 
-docker build -t "${DOCKER_IMAGE}" -f examples/docker/Dockerfile.example .
+# Builds
+docker build -t "${DOCKER_IMAGE}" -f docker/Dockerfile .
 
+# Runs
 docker run -it \
 -p "${PORT}":8080 \
 -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json  \
 -v "$GOOGLE_APPLICATION_CREDENTIALS":/tmp/keys/application_default_credentials.json:ro \
 -e GOOGLE_CLOUD_PROJECT="${PROJECT}" \
-"${DOCKER_IMAGE}" \
---DataprocSpawner.project="${PROJECT}" \
---DataprocSpawner.dataproc_configs="${CONFIGS_LOCATION}"
+-e PROJECT="${PROJECT}" \
+-e DATAPROC_CONFIGS="${CONFIGS_LOCATION}" \
+-e DATAPROC_LOCATIONS_LIST="b,c" \
+-e JUPYTERHUB_REGION="us-west1" \
+"${DOCKER_IMAGE}"

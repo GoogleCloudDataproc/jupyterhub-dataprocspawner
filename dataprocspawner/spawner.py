@@ -188,7 +188,7 @@ class DataprocSpawner(Spawner):
       """,)
 
   zone = Unicode(
-      'us-central1-a',
+    'us-central1-a',
       config=True,
       help=""" The zone in which to run the Dataproc cluster.""",)
 
@@ -328,6 +328,20 @@ class DataprocSpawner(Spawner):
     self.operation = None
     self.component_gateway_url = None
     self.progressor = SimpleNamespace(bar=0, logging=set(), start='')
+
+    # Sets region for cluster to Dataproc Hub region if not speficied.
+    if not self.region:
+      try:
+        r = requests.get(
+            'http://metadata.google.internal/computeMetadata/v1/instance/zone',
+            headers={'Metadata-Flavor': 'Google'})
+        r.raise_for_status()
+        self.region = '-'.join(r.text.split('/')[-1].split('-')[:-1])
+        self.log.info(f'# Using region {self.region}')
+      except Exception as e:  ## pylint: disable=broad-except
+        self.log.info(
+          'Fetching instance region failed. Probably not running on GCE. '
+          f'Consider setting JUPYTERHUB_REGION as a container env: {e}.')
 
     # Check if we have a notebooks proxy URL
     self.hub_host = ''
