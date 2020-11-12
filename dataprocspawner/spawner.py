@@ -30,7 +30,6 @@ from async_generator import aclosing, async_generator, yield_
 from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
                                                get_custom_cluster_html_form)
 from dataprocspawner.spawnable import DataprocHubServer
-from googleapiclient import discovery
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
 from google.cloud.dataproc_v1beta2 import (Cluster, ClusterControllerClient,
@@ -39,9 +38,9 @@ from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import
     ClusterControllerGrpcTransport
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.protobuf.json_format import MessageToDict
+from googleapiclient import discovery
 from jupyterhub import orm
 from jupyterhub.spawner import Spawner
-from oauth2client.client import GoogleCredentials
 from traitlets import Bool, Dict, List, Unicode
 
 
@@ -355,6 +354,7 @@ class DataprocSpawner(Spawner):
       self.dataproc_client = kwargs.get('dataproc')
       self.gcs_client = kwargs.get('gcs')
       self.logging_client = kwargs.get('logging')
+      self.compute_client = kwargs.get('compute')
     else:
       self.client_transport = (
           ClusterControllerGrpcTransport(
@@ -364,6 +364,7 @@ class DataprocSpawner(Spawner):
                           f'{self.region}-dataproc.googleapis.com:443'})
       self.gcs_client = storage.Client(project=self.project)
       self.logging_client = logging_v2.LoggingServiceV2Client()
+      self.compute_client = discovery.build('compute', 'v1', cache_discovery=False)
 
     if self.gcs_notebooks:
       if self.gcs_notebooks.startswith('gs://'):
@@ -376,9 +377,7 @@ class DataprocSpawner(Spawner):
     else:
       self.rand_str = ''
 
-    self.credentials = GoogleCredentials.get_application_default()
-
-    self.dataproc_zones = self._validate_zones(self.region, self.dataproc_locations_list)
+    self.dataproc_zones = self._validate_zones(self.dataproc_locations_list)
 
 
   ##############################################################################
@@ -1065,28 +1064,29 @@ class DataprocSpawner(Spawner):
     rand_str = ''.join((random.choice(letters_and_digits) for i in range(length)))
     return rand_str
 
-  def _validate_zones(self, region, zones):
+  def _validate_zones(self, zones):
     """
       Checks if 'dataproc_locations_list' contains zones, relevant for the current region.
       If variable is not defined or contains irrelevant zones only, then the user is free to use
       all zones present in current region. Otherwise returns relevant zones only.
     """
-    service = discovery.build('compute', 'v1', credentials=self.credentials)
-    project = self.project
-    zone_filter = f'name eq .*({region}).*'
-    request = service.zones().list(project=project, filter=zone_filter)
+    zone_filter = f'name eq .*({self.region}).*'
+    request = self.compute_client.zones().list(project=self.project, filter=zone_filter)
     allowed_zones = []
     result = []
-    while request is not None:
+    try:
       response = request.execute()
       for zone in response['items']:
         allowed_zones.append(zone['name'][-1].strip())
-      request = service.zones().list_next(previous_request=request, previous_response=response)
-      for zone in zones.split(','):
-        if zone in allowed_zones:
-          result.append(zone)
-      if len(result) == 0:
-        result = allowed_zones
+    except Exception as e: ## pylint: disable=broad-except
+      self.log.info(f'Failed to validate Dataproc locations list:\n\t{e}')
+
+    for zone in zones.split(','):
+      if zone in allowed_zones:
+        result.append(zone)
+    if len(result) == 0:
+      result = allowed_zones
+
     return result
 
 

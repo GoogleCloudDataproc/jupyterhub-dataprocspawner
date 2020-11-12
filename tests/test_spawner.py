@@ -36,6 +36,7 @@ from google.cloud.logging_v2.types import LogEntry
 from google.cloud.storage.blob import Blob
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Struct
+from googleapiclient import discovery
 from jupyterhub.objects import Hub, Server
 from unittest import mock
 from types import SimpleNamespace
@@ -85,12 +86,14 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.create_cluster.return_value = operation
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
     # Force no existing clusters to bypass the check in the spawner
     mock_client.get_cluster.return_value = None
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-create')
 
     async def test_get_cluster_notebook_endpoint(*args, **kwargs):
       await asyncio.sleep(0)
@@ -99,7 +102,6 @@ class TestDataprocSpawner:
     monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
 
     # Test that the traitlets work
-    spawner.project = 'test-create'
     assert spawner.project == 'test-create'
     assert spawner.region == self.region
 
@@ -121,8 +123,11 @@ class TestDataprocSpawner:
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-create-existing')
 
     async def test_get_cluster_notebook_endpoint(*args, **kwargs):
       await asyncio.sleep(0)
@@ -130,7 +135,6 @@ class TestDataprocSpawner:
 
     monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
 
-    spawner.project = "test-create-existing"
     assert spawner.project == "test-create-existing"
 
     url = await spawner.start()
@@ -143,11 +147,12 @@ class TestDataprocSpawner:
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-stop')
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
-
-    spawner.project = 'test-stop'
     assert spawner.project == 'test-stop'
     assert spawner.region == self.region
 
@@ -164,11 +169,12 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-stop-no-cluster')
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
-
-    spawner.project = 'test-stop-no-cluster'
     assert spawner.project == 'test-stop-no-cluster'
 
     response = await spawner.stop()
@@ -188,11 +194,12 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = expected_response
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-poll')
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
-
-    spawner.project = 'test-poll'
     assert spawner.project == 'test-poll'
 
     assert await spawner.poll() == None
@@ -210,10 +217,13 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = expected_response
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-poll-create')
 
-    spawner.project = 'test-poll-create'
     assert spawner.project == 'test-poll-create'
 
     assert await spawner.poll() == None
@@ -224,9 +234,12 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_client.get_cluster.return_value = None
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
 
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-poll-no-cluster')
 
     async def test_get_cluster_notebook_endpoint(*args, **kwargs):
       await asyncio.sleep(0)
@@ -234,7 +247,6 @@ class TestDataprocSpawner:
 
     monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
 
-    spawner.project = 'test-poll-no-cluster'
     assert spawner.project == 'test-poll-no-cluster'
     assert await spawner.poll() == 1
 
@@ -246,8 +258,11 @@ class TestDataprocSpawner:
 
     fake_creds = AnonymousCredentials()
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
-                              _mock=True, gcs_notebooks=self.gcs_notebooks)
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-project')
 
     assert spawner._clean_gcs_path(path) == "gs://bucket/config"
     assert spawner._clean_gcs_path(path, return_gs=False) == "bucket/config"
@@ -289,13 +304,17 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
 
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(mock_gcs_client, "list_blobs", test_list_blobs)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.zone = "test-self1-b"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
@@ -329,13 +348,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.zone = "test-self1-b"
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
@@ -372,13 +394,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "get_username", test_username)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -408,13 +433,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -446,13 +474,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -486,12 +517,15 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -518,13 +552,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -595,13 +632,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -631,13 +671,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -673,13 +716,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_string)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -697,7 +743,6 @@ class TestDataprocSpawner:
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_uri)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -725,13 +770,16 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -756,8 +804,12 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     assert spawner._validate_image_version_supports_component_gateway('1.3') is True
     assert spawner._validate_image_version_supports_component_gateway('1.3-debian9') is True
     assert spawner._validate_image_version_supports_component_gateway('1.3.6-debian9') is False
@@ -787,12 +839,15 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client, user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks)
-
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
     # Prevents a call to GCS. We return the local file instead.
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
 
-    spawner.project = "test-project"
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -853,10 +908,12 @@ class TestDataprocSpawner:
     mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_logging_client = mock.create_autospec(
         logging_v2.LoggingServiceV2Client(credentials=fake_creds))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
                               _mock=True, logging=mock_logging_client,
-                              gcs_notebooks=self.gcs_notebooks)
-    spawner.project = "test-progress"
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-progress')
 
     async def test_get_cluster_notebook_endpoint(*args, **kwargs):
       await asyncio.sleep(0)

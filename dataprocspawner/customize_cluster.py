@@ -167,7 +167,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_worker_amount = """
     <div class="form-group">
-      <label for="worker_node_amount">Amount of workers</label>
+      <label for="worker_node_amount">Number of workers</label>
       <input name="worker_node_amount" class="form-control" placeholder="default" value=''></input>
     </div>"""
 

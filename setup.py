@@ -17,6 +17,7 @@
 This package should only be used within a jupyterhub_config.py file.
 """
 import os
+
 from setuptools import setup
 
 pjoin = os.path.join
@@ -44,7 +45,8 @@ setup(
     'google-cloud-logging>=1.15'
     'pyyaml>=5.1.2',
     'oauthenticator>=0.9.0',
-    'pyjwt>=1.7.1'
+    'pyjwt>=1.7.1',
+    'google-api-python-client>=1.12.5'
   ],
   entry_points={
     'console_scripts': [
