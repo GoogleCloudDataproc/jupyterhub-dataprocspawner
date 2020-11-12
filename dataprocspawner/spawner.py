@@ -30,7 +30,6 @@ from async_generator import aclosing, async_generator, yield_
 from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
                                                get_custom_cluster_html_form)
 from dataprocspawner.spawnable import DataprocHubServer
-from googleapiclient import discovery
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
 from google.cloud.dataproc_v1beta2 import (Cluster, ClusterControllerClient,
@@ -39,6 +38,7 @@ from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import
     ClusterControllerGrpcTransport
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.protobuf.json_format import MessageToDict
+from googleapiclient import discovery
 from jupyterhub import orm
 from jupyterhub.spawner import Spawner
 from oauth2client.client import GoogleCredentials
@@ -376,7 +376,10 @@ class DataprocSpawner(Spawner):
     else:
       self.rand_str = ''
 
+    # try:
     self.credentials = GoogleCredentials.get_application_default()
+    # except Exception as e: ## pylint: disable=broad-except
+    #   self.log.info(f'An error occurred while getting credentials:\n\t{e}')
 
     self.dataproc_zones = self._validate_zones(self.region, self.dataproc_locations_list)
 
@@ -1071,24 +1074,30 @@ class DataprocSpawner(Spawner):
       If variable is not defined or contains irrelevant zones only, then the user is free to use
       all zones present in current region. Otherwise returns relevant zones only.
     """
-    service = discovery.build('compute', 'v1', credentials=self.credentials)
+    service = discovery.build('compute', 'v1', credentials=self.credentials, cache_discovery=False)
     project = self.project
     zone_filter = f'name eq .*({region}).*'
     request = service.zones().list(project=project, filter=zone_filter)
     allowed_zones = []
     result = []
+    # try:
     while request is not None:
       response = request.execute()
       for zone in response['items']:
         allowed_zones.append(zone['name'][-1].strip())
       request = service.zones().list_next(previous_request=request, previous_response=response)
-      for zone in zones.split(','):
-        if zone in allowed_zones:
-          result.append(zone)
-      if len(result) == 0:
-        result = allowed_zones
-    return result
+    # except Exception as e: ## pylint: disable=broad-except
+      # self.log.info(f'Failed to validate Dataproc locations list:\n\t{e}')
 
+    for zone in zones.split(','):
+      if zone in allowed_zones:
+        result.append(zone)
+    if (len(result) == 0 and len(allowed_zones) > 0):
+      result = allowed_zones
+    elif (len(result) == 0 and len(allowed_zones) == 0):
+      result = zones.split(',')
+
+    return result
 
 
 ################################################################################

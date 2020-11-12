@@ -17,6 +17,7 @@
 This package should only be used within a jupyterhub_config.py file.
 """
 import os
+
 from setuptools import setup
 
 pjoin = os.path.join
