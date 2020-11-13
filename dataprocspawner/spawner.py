@@ -267,11 +267,6 @@ class DataprocSpawner(Spawner):
       config=True,
       help=""" Allow users to randomize their cluster names. """,)
 
-  internal_ip_only = Bool(
-      False,
-      config=True,
-      help=""" Configure all instances to have only internal IP addresses. """,)
-
   default_notebooks_gcs_path = Unicode(
       '',
       config=True,
@@ -1311,9 +1306,6 @@ class DataprocSpawner(Spawner):
       cluster_data['config']['initialization_actions'] = (
           init_actions + cluster_data['config']['initialization_actions']
       )
-
-      if self.internal_ip_only:
-        cluster_data['config']['gce_cluster_config']['internal_ip_only'] = True
 
       if 'labels' not in cluster_data:
         cluster_data.setdefault('labels', {})
