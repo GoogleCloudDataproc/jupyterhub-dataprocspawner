@@ -38,7 +38,7 @@ gcloud --project "${PROJECT_ID}" builds submit --config=/tmp/cloudbuild-gce.yaml
 gcloud compute instances create-with-container "${VM_NAME}" \
   --project "${PROJECT_ID}" \
   --container-image="${DOCKER_IMAGE}" \
-  --container-env="^|^PROJECT=${PROJECT_ID}|DATAPROC_CONFIGS=${CONFIGS_LOCATION}|DATAPROC_LOCATIONS_LIST=b,c" \
+  --container-env="^|^PROJECT=${PROJECT_ID}|DATAPROC_CONFIGS=${CONFIGS_LOCATION}" \
   --scopes=cloud-platform \
   --zone us-central1-a
 
