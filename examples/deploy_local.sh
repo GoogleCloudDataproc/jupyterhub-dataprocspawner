@@ -39,4 +39,5 @@ docker run -it \
 -e PROJECT="${PROJECT}" \
 -e DATAPROC_CONFIGS="${CONFIGS_LOCATION}" \
 -e JUPYTERHUB_REGION="us-west1" \
+-e HUB_ALLOW_NAMED_SERVERS="True" \
 "${DOCKER_IMAGE}"

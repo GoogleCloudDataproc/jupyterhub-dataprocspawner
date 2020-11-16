@@ -47,6 +47,7 @@ print(os.environ)
 c.JupyterHub.spawner_class = 'dataprocspawner.DataprocSpawner'
 c.JupyterHub.proxy_class = 'redirect-proxy'
 c.JupyterHub.port = 8080
+c.JupyterHub.allow_named_servers = is_true(os.environ.get('HUB_ALLOW_NAMED_SERVERS', False))
 
 # Authenticator
 from gcpproxiesauthenticator.gcpproxiesauthenticator import GCPProxiesAuthenticator
