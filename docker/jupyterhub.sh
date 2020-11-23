@@ -52,6 +52,7 @@ function append-config-testing {
   cat <<EOT >> jupyterhub_config.py
 ## Start of configuration for JupyterHub on local machine ##
 c.GCPProxiesAuthenticator.dummy_email = 'testing@example.com'
+c.JupyterHub.log_level = 'DEBUG'
 EOT
 }
 

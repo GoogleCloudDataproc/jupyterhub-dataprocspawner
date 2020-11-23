@@ -43,6 +43,8 @@ from jupyterhub import orm
 from jupyterhub.spawner import Spawner
 from traitlets import Bool, Dict, List, Unicode
 
+from tornado import web
+
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
@@ -163,7 +165,7 @@ class DataprocSpawner(Spawner):
   # Since creating a cluster takes longer than the 30 second default,
   # up this value so Jupyterhub can connect to the spawned server.
   # Unit is in seconds.
-  http_timeout = 900
+  http_timeout = 1800
 
 ################################################################################
 # Admin variables passed in jupytherhub_config.py as c.Spawner.[VARIABLE]
@@ -404,11 +406,11 @@ class DataprocSpawner(Spawner):
       (String, Int): FQDN of the master node and the port it's accessible at.
     """
     if not self.project:
-      raise RuntimeError('You need to set a project')
+      self._raise_exception('You need to set a project')
 
     if (await self.get_cluster_status(self.clustername())
         == ClusterStatus.State.DELETING):
-      raise RuntimeError(f'Cluster {self.clustername()} is pending deletion.')
+      self._raise_exception(f'Cluster {self.clustername()} is pending deletion.')
 
     if not await self.exists(self.clustername()):
       self.create_example_notebooks()
@@ -522,7 +524,7 @@ class DataprocSpawner(Spawner):
          'and it was not spawned from this Dataproc Hub instance.')
 
       await yield_({'progress': 100, 'failed': True, 'message': msg_existing})
-      raise RuntimeError(msg_existing)
+      self._raise_exception(msg_existing)
 
     resources = [f'projects/{self.project}']
     log_methods = {'doStart','instantiateMe','getOrCreateAgent','run',
@@ -701,6 +703,12 @@ class DataprocSpawner(Spawner):
 ################################################################################
 # Custom Functions
 ################################################################################
+  def _raise_exception(self, msg):
+    """ Creates an exception with a message that displays on spawn-pending. """
+    e = web.HTTPError(500, msg)
+    e.jupyterhub_message = msg
+    raise e
+
   def get_dataproc_master_fqdn(self):
     """ Zonal DNS is in the form [CLUSTER NAME]-m.[ZONE].c.[PROJECT ID].internal
     If the project is domain-scoped, then PROJECT ID needs to be in the form
@@ -883,12 +891,15 @@ class DataprocSpawner(Spawner):
     Returns:
       (str) Component Gateway URL without the trailing `/`
     """
+    endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
     cluster = await self.get_cluster(clustername)
-    # TODO(mayran): Possibly deprecate this and force to JupyterLab.
-    if cluster is not None:
-      endpoint_name = 'JupyterLab' if 'lab' in self.default_url else 'Jupyter'
-      return cluster.config.endpoint_config.http_ports[endpoint_name].rstrip('/')
-    return None
+    if cluster is None:
+      self._raise_exception(f'Can not get cluster {clustername} information.')
+    if not cluster.config.endpoint_config:
+      self._raise_exception(f'No endpoint_config set for {clustername}.')
+    if endpoint_name not in cluster.config.endpoint_config.http_ports:
+      self._raise_exception(f'No Jupyter endpoint configured for {clustername}.')
+    return cluster.config.endpoint_config.http_ports[endpoint_name].rstrip('/')
 
   async def get_cluster_status(self, clustername):
     cluster = await self.get_cluster(clustername)
@@ -906,7 +917,9 @@ class DataprocSpawner(Spawner):
           region=self.region,
           cluster_name=clustername)
     except exceptions.NotFound:
-      self.log.info('self.dataproc_client.get_cluster(): Exceptions Not Found')
+      return None
+    except (exceptions.GoogleAPICallError, exceptions.PermissionDenied) as e:
+      self.log.info(f'# get_cluster exception: {e.message}')
       return None
 
 ################################################################################
@@ -1030,9 +1043,10 @@ class DataprocSpawner(Spawner):
       if trim_zone:
         uri_geo = uri_geo[:-2]
       if uri_geo not in [expected_geo, 'global']:
-        raise RuntimeError(f"""The location {uri_geo} of the uri {uri} in
-            the yaml file does not match the Dataproc Hub's one {expected_geo}.
-            Please, contact your admnistrator. """)
+        self._raise_exception(
+            f'The location {uri_geo} of the uri {uri} in the yaml file does '
+            f'not match the Dataproc Hub one {expected_geo}. Please contact '
+            'your admnistrator.')
     return uri_geo or uri
 
   def _validate_image_version_supports_component_gateway(self, image_version):
@@ -1373,14 +1387,12 @@ class DataprocSpawner(Spawner):
     # Forces Component Gateway
     if not self._validate_image_version_supports_component_gateway(
         cluster_data['config']['software_config']['image_version']):
-      raise RuntimeError('Image version does not support Component Gateway.')
+      self._raise_exception('Image version does not support Component Gateway.')
 
-    cluster_data['config']\
-        .setdefault('endpoint_config', {})\
-        .setdefault('enable_http_port_access', True)
+    cluster_data['config'].setdefault('endpoint_config', {})
+    cluster_data['config']['endpoint_config']['enable_http_port_access'] = True
 
     cluster_data['config']['software_config'].setdefault('optional_components', [])
-
     # Converts component's string to its int value (See Component protobuf in
     # google-cloud-dataproc library). This allows to pass strings in yaml.
     optional_components = [

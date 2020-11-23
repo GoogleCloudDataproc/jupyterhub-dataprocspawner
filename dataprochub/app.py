@@ -23,6 +23,7 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
   async def _redirect_to_user_server(self, user, spawner):
     self.statsd.incr('redirects.user_after_login')
     redirect_url = user.spawners[spawner.name].component_gateway_url
+    self.log.debug(f'# spawner.name is `{spawner.name}`.')
     self.log.info(f'# Redirecting to notebook at {redirect_url}.')
     self.redirect(redirect_url)
 
