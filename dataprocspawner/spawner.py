@@ -920,7 +920,12 @@ class DataprocSpawner(Spawner):
     """ JupyterHub provides a notebook per user, so the username is used to
     distinguish between clusters. """
     if cluster_name is None:
-      return self.cluster_name_pattern.format(self.get_username()) + self.rand_str
+      cluster_name = self.cluster_name_pattern.format(self.get_username())
+      # Set only if allow_named_servers == True
+      if self.name:
+        cluster_name += f'-{self.name}'
+      if self.rand_str:
+        cluster_name += f'-{self.rand_str}'
     return cluster_name
 
   def calculate_config_value(self, key, path):
