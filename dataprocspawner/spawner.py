@@ -12,39 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A custom Spawner that creates notebooks backed by Dataproc clusters."""
-
 import asyncio
+from datetime import datetime as dt
 import json
 import math
 import os
 import random
 import re
 import string
-from datetime import datetime as dt
 from types import SimpleNamespace
 
+from async_generator import aclosing, async_generator, yield_
+from dataprocspawner.customize_cluster import (
+    get_base_cluster_html_form, get_custom_cluster_html_form)
+from dataprocspawner.spawnable import DataprocHubServer
+from googleapiclient import discovery
+from jupyterhub import orm
+from jupyterhub.spawner import Spawner
 import proto
 import requests
+from tornado import web
+from traitlets import Bool, Dict, List, Unicode
 import yaml
-from async_generator import aclosing, async_generator, yield_
+
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
-from google.cloud.dataproc_v1beta2 import (Cluster, ClusterControllerClient,
-                                           ClusterStatus)
+from google.cloud.dataproc_v1beta2 import (
+    Cluster, ClusterControllerClient, ClusterStatus)
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import \
     ClusterControllerGrpcTransport
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.protobuf.json_format import MessageToDict
-from googleapiclient import discovery
-from jupyterhub import orm
-from jupyterhub.spawner import Spawner
-from tornado import web # pylint: disable=wrong-import-order
-from traitlets import Bool, Dict, List, Unicode
-
-from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
-                                               get_custom_cluster_html_form)
-from dataprocspawner.spawnable import DataprocHubServer
-
 
 def url_path_join(*pieces):
   """Join components of url into a relative url.
