@@ -19,7 +19,7 @@ PROJECT=$1
 CONFIGS_LOCATION=$2
 USER_EMAIL=$3
 PORT="${4:-8000}"
-DOCKER_IMAGE="hub:nocg"
+DOCKER_IMAGE="hub:local"
 
 # Manages authentication for container
 mkdir -p /tmp/keys
