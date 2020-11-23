@@ -38,7 +38,7 @@ from google.protobuf.json_format import MessageToDict
 from googleapiclient import discovery
 from jupyterhub import orm
 from jupyterhub.spawner import Spawner
-from tornado import web
+from tornado import web # pylint: disable=wrong-import-order
 from traitlets import Bool, Dict, List, Unicode
 
 from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
