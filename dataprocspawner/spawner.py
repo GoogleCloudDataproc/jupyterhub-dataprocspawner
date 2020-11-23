@@ -37,8 +37,7 @@ import yaml
 
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
-from google.cloud.dataproc_v1beta2 import (
-    Cluster, ClusterControllerClient, ClusterStatus)
+from google.cloud.dataproc_v1beta2 import Cluster, ClusterControllerClient, ClusterStatus
 from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import \
     ClusterControllerGrpcTransport
 from google.cloud.dataproc_v1beta2.types.shared import Component
