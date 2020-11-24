@@ -25,9 +25,6 @@ function append-config-ain {
 ## Start of configuration for JupyterHub on AI Notebooks ##
 c.Spawner.spawner_host_type = 'ain'
 
-# Port can not be 8001. Conflicts with another one process.
-c.ConfigurableHTTPProxy.api_url = 'http://127.0.0.1:8005'
-
 # Option on Dataproc Notebook server to allow authentication.
 c.Spawner.args = ['--NotebookApp.disable_check_xsrf=True']
 EOT
