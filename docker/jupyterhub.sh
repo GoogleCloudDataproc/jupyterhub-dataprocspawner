@@ -30,18 +30,6 @@ c.ConfigurableHTTPProxy.api_url = 'http://127.0.0.1:8005'
 
 # Option on Dataproc Notebook server to allow authentication.
 c.Spawner.args = ['--NotebookApp.disable_check_xsrf=True']
-
-# Passes a Hub URL accessible by Dataproc. Without this AI Notebook passes a
-# local address. Used by the overwritter get_env().
-metadata_base_url = "http://metadata.google.internal/computeMetadata/v1"
-headers = {'Metadata-Flavor': 'Google'}
-params = ( ('recursive', 'true'), ('alt', 'text') )
-instance_ip = requests.get(
-    f'{metadata_base_url}/instance/network-interfaces/0/ip',
-    params=params,
-    headers=headers
-).text
-
 EOT
 }
 
