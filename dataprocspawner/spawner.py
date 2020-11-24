@@ -845,6 +845,8 @@ class DataprocSpawner(Spawner):
         return self.dataproc_client.create_cluster(project_id=self.project,
                                                    region=self.region,
                                                    cluster=cluster_data)
+      except exceptions.InvalidArgument as e:
+        self._raise_exception(e.message)
       except (exceptions.PermissionDenied,
               exceptions.TooManyRequests,
               exceptions.ResourceExhausted) as e:
