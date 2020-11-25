@@ -119,6 +119,38 @@ class TestDataprocSpawner:
     assert env['JUPYTERHUB_API_URL'] is not None
 
   @pytest.mark.asyncio
+  async def test_named_server(self, monkeypatch):
+    operation = operations_pb2.Operation()
+
+    # Mock the Dataproc API client
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_client.create_cluster.return_value = operation
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    # Force no existing clusters to bypass the check in the spawner
+    mock_client.get_cluster.return_value = None
+
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-create')
+
+    class _SubSpawner(DataprocSpawner):
+      name = 'server1'
+    spawner.__class__ = _SubSpawner
+
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
+    url = await spawner.start()
+    mock_client.create_cluster.assert_called_once()
+
+    assert spawner.cluster_definition['cluster_name'] == 'dataprochub-fake-server1'
+
+  @pytest.mark.asyncio
   async def test_start_existing_clustername(self, monkeypatch):
 
     fake_creds = AnonymousCredentials()

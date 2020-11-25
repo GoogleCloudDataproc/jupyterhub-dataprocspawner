@@ -212,15 +212,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     </div>
     </div>"""
 
-  html_secondary_worker_preemptibility = """
-    <div class="form-group">
-      <label for="sec_worker_preempt">Preemptibility</label>
-      <select class="form-control" name="sec_worker_preempt">
-        <option value="PREEMPTIBLE">Preemptible</option>
-        <option value="NON-PREEMPTIBLE">Non-preemptible</option>
-      </select>
-    </div>"""
-
   html_secondary_worker_disk_type = """
     <br />
     <div class="form-group" name="sec_worker">
@@ -264,14 +255,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       </input>
     </div>"""
 
-  html_cluster_properties = """
-    <div class="form-group">
-      <label for="cluster_properties">Cluster properties</label>
-      <input name="cluster_properties" class="form-control"
-        placeholder="prefix:property1=value1,prefix:property2=value2" value="">
-      </input>
-    </div>"""
-
   html_hive_settings = """
     <div class="form-group">
       <label for="hive_host">Hive Metastore host</label>
@@ -302,14 +285,11 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_worker_disk_type,
     html_worker_disk_size,
     html_worker_amount,
-    # Temporary disabled
-    # html_secondary_worker_preemptibility,
     html_secondary_worker_disk_type,
     html_secondary_worker_disk_size,
     html_secondary_worker_amount,
     html_custom_labels,
     html_init_actions,
-    # html_cluster_properties,
     html_hive_settings
   ])
 
