@@ -109,13 +109,49 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       </input>
     </div>"""
 
-  html_master_type = ""
+  html_cluster_image = """
+    <br />
+    <div class="form-group" name="versioning">
+      <label for="versioning"><h1>Versioning</h1></label>
+      <div>
+        <input onclick="document.getElementById('custom_image').disabled = true;"
+          type="radio" id="image-radio1" name="image_version" value="preview-debian10">
+        <label for="customRadio1">PREVIEW 2.0</label>
+      </div>
+      <div>
+        <input onclick="document.getElementById('custom_image').disabled = true;"
+          type="radio" id="image-radio2" name="image_version" value="1.5-debian10" checked>
+        <label for="customRadio2">1.5</label>
+      </div>
+      <div>
+        <input onclick="document.getElementById('custom_image').disabled = true;"
+          type="radio" id="image-radio3" name="image_version" value="1.4-debian10">
+        <label for="customRadio3">1.4</label>
+      </div>
+      <div>
+        <input onclick="document.getElementById('custom_image').disabled = true;"
+          type="radio" id="image-radio4" name="image_version" value="1.3-debian10">
+        <label for="customRadio4">1.3</label>
+      </div>
+      <div>
+        <input onclick="document.getElementById('custom_image').disabled = false;"
+          type="radio" id="image-radio5" name="image_version">
+        <label for="customRadio5">Custom image</label>
+        <input class="form-control" id="custom_image" name="custom_image"
+          placeholder="projects/<project_id>/global/images/<image_id>" disabled>
+      </div>
+    </div>"""
+
+  html_master_type = """
+    <br />
+    <div class="form-group" name="master">
+      <label for="master"><h1>Master node</h1></label>"""
   if node_types:
     html_master_type += """
-    <div class="form-group">
-      <label for="master_node_type">Master machine type</label>
-      <select class="form-control" name="master_node_type">
-        <option value=''>Default</option>"""
+      <div class="form-group">
+        <label for="master_node_type">Machine type</label>
+        <select class="form-control" name="master_node_type">
+          <option value=''>Default</option>"""
     for t in node_types:
       html_master_type += f'\n\t<option value="{t}">{t}</option>'
     html_master_type += """
@@ -124,7 +160,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_master_disk_type = """
     <div class="form-group">
-      <label for="master_disk_type">Master disk type</label>
+      <label for="master_disk_type">Primary disk type</label>
       <select class="form-control" name="master_disk_type">
         <option value="pd-standard">Standard Persistent Disk</option>
         <option value="pd-ssd">SSD Persistent Disk</option>
@@ -133,15 +169,19 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_master_disk_size = """
     <div class="form-group">
-      <label for="master_disk_size">Master disk size</label>
+      <label for="master_disk_size">Primary disk size</label>
       <input name="master_disk_size" class="form-control" placeholder="default" value=''></input>
+    </div>
     </div>"""
 
-  html_worker_type = ""
+  html_worker_type = """
+    <br />
+    <div class="form-group" name="worker">
+      <label for="worker"><h1>Worker nodes</h1></label>"""
   if node_types:
     html_worker_type += """
       <div class="form-group">
-        <label for="worker_node_type">Workers machine type</label>
+        <label for="worker_node_type">Machine type</label>
         <select class="form-control" name="worker_node_type">
           <option value=''>Default</option>"""
     for t in node_types:
@@ -152,7 +192,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_worker_disk_type = """
     <div class="form-group">
-      <label for="worker_disk_type">Worker disk type</label>
+      <label for="worker_disk_type">Primary disk type</label>
       <select class="form-control" name="worker_disk_type">
         <option value="pd-standard">Standard Persistent Disk</option>
         <option value="pd-ssd">SSD Persistent Disk</option>
@@ -161,21 +201,74 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   html_worker_disk_size = """
     <div class="form-group">
-      <label for="worker_disk_size">Worker disk size</label>
+      <label for="worker_disk_size">Primary disk size</label>
       <input name="worker_disk_size" class="form-control" placeholder="default" value=''></input>
     </div>"""
 
   html_worker_amount = """
     <div class="form-group">
-      <label for="worker_node_amount">Number of workers</label>
-      <input name="worker_node_amount" class="form-control" placeholder="default" value=''></input>
+      <label for="worker_node_amount">Number of worker nodes</label>
+      <input name="worker_node_amount" class="form-control" placeholder="" value='2'></input>
+    </div>
+    </div>"""
+
+  html_secondary_worker_preemptibility = """
+    <div class="form-group">
+      <label for="sec_worker_preempt">Preemptibility</label>
+      <select class="form-control" name="sec_worker_preempt">
+        <option value="PREEMPTIBLE">Preemptible</option>
+        <option value="NON-PREEMPTIBLE">Non-preemptible</option>
+      </select>
+    </div>"""
+
+  html_secondary_worker_disk_type = """
+    <br />
+    <div class="form-group" name="sec_worker">
+      <label for="sec_worker"><h1>Secondary worker nodes</h1></label>
+      <div class="form-group">
+        <label for="sec_worker_disk_type">Primary disk type</label>
+        <select class="form-control" name="sec_worker_disk_type">
+          <option value="pd-standard">Standard Persistent Disk</option>
+          <option value="pd-ssd">SSD Persistent Disk</option>
+        </select>
+      </div>"""
+
+  html_secondary_worker_disk_size = """
+    <div class="form-group">
+      <label for="sec_worker_disk_size">Primary disk size</label>
+      <input name="sec_worker_disk_size" class="form-control"
+        placeholder="default" value=''></input>
+    </div>"""
+
+  html_secondary_worker_amount = """
+    <div class="form-group">
+      <label for="sec_worker_node_amount">Number of secondary worker nodes</label>
+      <input name="sec_worker_node_amount" class="form-control" placeholder="" value='0'></input>
+    </div>
     </div>"""
 
   html_custom_labels = """
+    <br />
     <div class="form-group">
       <label for="custom_labels">User defined labels</label>
       <input name="custom_labels" class="form-control" placeholder="key1:value1,key2:value2"
         value=''>
+      </input>
+    </div>"""
+
+  html_init_actions = """
+    <div class="form-group">
+      <label for="init_actions">Initialization actions</label>
+      <input name="init_actions" class="form-control"
+        placeholder="gs://<init_action1>,gs://<init_action2>" value="">
+      </input>
+    </div>"""
+
+  html_cluster_properties = """
+    <div class="form-group">
+      <label for="cluster_properties">Cluster properties</label>
+      <input name="cluster_properties" class="form-control"
+        placeholder="prefix:property1=value1,prefix:property2=value2" value="">
       </input>
     </div>"""
 
@@ -201,6 +294,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_autoscaling_policy,
     html_pip_packages,
     html_condo_packages,
+    html_cluster_image,
     html_master_type,
     html_master_disk_type,
     html_master_disk_size,
@@ -208,7 +302,14 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_worker_disk_type,
     html_worker_disk_size,
     html_worker_amount,
+    # Temporary disabled
+    # html_secondary_worker_preemptibility,
+    html_secondary_worker_disk_type,
+    html_secondary_worker_disk_size,
+    html_secondary_worker_amount,
     html_custom_labels,
+    html_init_actions,
+    # html_cluster_properties,
     html_hive_settings
   ])
 

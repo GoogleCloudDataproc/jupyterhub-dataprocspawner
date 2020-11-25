@@ -600,6 +600,7 @@ class TestDataprocSpawner:
             'boot_disk_size_gb': 1000
           },
         },
+        'worker_config': {},
         'software_config': {
           'image_version': '1.4-debian9',
           'optional_components': [
