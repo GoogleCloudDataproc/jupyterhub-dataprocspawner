@@ -6,7 +6,7 @@
   <div class="row">
     <div class="text-center">
       {% block message %}
-      <p>Your server is provisioning, this may take a few minutes.</p>
+      <p>Your cluster is provisioning, this may take a few minutes.</p>
       <p>You will be redirected automatically when it's ready for you.</p>
       {% endblock %}
       <div class="progress">
@@ -81,7 +81,7 @@ require(["jquery"], function ($) {
       if (evt.ready) {
         evtSource.close();
         // reload the current page
-        // which should result in a redirect to the running server
+        // which should result in a redirect to the running cluster
         window.location.reload();
       }
 
@@ -93,14 +93,14 @@ require(["jquery"], function ($) {
         $('#progress-details').prop('open', true);
       }
     };
-    
+
     evtSource.onerror = function() {
       evtSource.close();
       console.log("evtSource failed");
       getEvents();
     };
   };
-  
+
   getEvents();
 });
 </script>

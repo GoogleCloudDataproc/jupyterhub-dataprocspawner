@@ -9,25 +9,25 @@
     <div class="text-center">
       {% if default_server.active %}
         <a id="stop" role="button" class="btn btn-danger">
-          Stop My Server
+          Stop My Cluster
         </a>
       {% endif %}
       <!-- <a id="start" role="button" class="btn btn-primary" href="{{ url }}"> -->
       <a id="start" role="button" class="btn btn-primary" href="/hub/spawn">
       {% if not default_server.active %}Start{% endif %}
-      My Server
+      My Cluster
       </a>
     </div>
   </div>
   {% if allow_named_servers %}
   <h2>
-  Named Servers
+  Named Clusters
   </h2>
 
   <p>
-  In addition to your default server,
+  In addition to your default cluster,
   you may have additional {% if named_server_limit_per_user > 0 %}{{ named_server_limit_per_user }} {% endif %}server(s) with names.
-  This allows you to have more than one server running at the same time.
+  This allows you to have more than one cluster running at the same time.
   </p>
 
   {% set named_spawners = user.all_spawners(include_default=False)|list %}
@@ -35,7 +35,7 @@
   <table class="server-table table table-striped">
     <thead>
       <tr>
-        <th>Server name</th>
+        <th>Cluster name</th>
         <th>URL</th>
         <th>Last activity</th>
         <th>Actions</th>
@@ -44,9 +44,9 @@
     <tbody>
       <tr class="home-server-row add-server-row">
         <td colspan="4">
-          <input class="new-server-name" placeholder="Name your server">
+          <input class="new-server-name" placeholder="Name your cluster">
           <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary">
-            Add New Server
+            Add New Cluster
           </a>
         </td>
       </tr>
