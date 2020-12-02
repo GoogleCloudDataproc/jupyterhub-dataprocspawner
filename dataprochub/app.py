@@ -17,14 +17,17 @@
 from jupyterhub.app import JupyterHub
 from jupyterhub.handlers.base import UserUrlHandler
 
+
 class DataprocHubUserUrlHandler(UserUrlHandler):
   """ Extends UserUrlHandler to redirect user once spawn is done. """
 
   async def _redirect_to_user_server(self, user, spawner):
     self.statsd.incr('redirects.user_after_login')
     redirect_url = user.spawners[spawner.name].component_gateway_url
+    self.log.debug(f'# spawner.name is `{spawner.name}`.')
     self.log.info(f'# Redirecting to notebook at {redirect_url}.')
     self.redirect(redirect_url)
+
 
 class DataprocHub(JupyterHub):
   """ Extends JupyterHub mainly to handle redirect vs proxy.
@@ -58,6 +61,7 @@ class DataprocHub(JupyterHub):
     super().init_handlers()
     self.handlers = self.new_prefixed + self.handlers
     self.log.debug(self.handlers)
+
 
 main = DataprocHub.launch_instance
 

@@ -25,23 +25,8 @@ function append-config-ain {
 ## Start of configuration for JupyterHub on AI Notebooks ##
 c.Spawner.spawner_host_type = 'ain'
 
-# Port can not be 8001. Conflicts with another one process.
-c.ConfigurableHTTPProxy.api_url = 'http://127.0.0.1:8005'
-
 # Option on Dataproc Notebook server to allow authentication.
 c.Spawner.args = ['--NotebookApp.disable_check_xsrf=True']
-
-# Passes a Hub URL accessible by Dataproc. Without this AI Notebook passes a
-# local address. Used by the overwritter get_env().
-metadata_base_url = "http://metadata.google.internal/computeMetadata/v1"
-headers = {'Metadata-Flavor': 'Google'}
-params = ( ('recursive', 'true'), ('alt', 'text') )
-instance_ip = requests.get(
-    f'{metadata_base_url}/instance/network-interfaces/0/ip',
-    params=params,
-    headers=headers
-).text
-
 EOT
 }
 
@@ -52,6 +37,7 @@ function append-config-testing {
   cat <<EOT >> jupyterhub_config.py
 ## Start of configuration for JupyterHub on local machine ##
 c.GCPProxiesAuthenticator.dummy_email = 'testing@example.com'
+c.JupyterHub.log_level = 'DEBUG'
 EOT
 }
 

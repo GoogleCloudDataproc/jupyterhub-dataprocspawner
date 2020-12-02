@@ -67,16 +67,16 @@
 
       <td class="server-col col-sm-2 text-center">
         <a role="button" class="stop-server btn btn-xs btn-danger{% if not spawner.active %} hidden{% endif %}">
-        stop server
+        stop cluster
         </a>
         <a role="button" class="start-server btn btn-xs btn-primary{% if spawner.active %} hidden{% endif %}">
-        start server
+        start cluster
         </a>
       </td>
       <td class="server-col col-sm-1 text-center">
         {%- if admin_access %}
         <a role="button" class="access-server btn btn-xs btn-primary{% if not spawner.active %} hidden{% endif %}">
-        access server
+        access cluster
         </a>
         {%- endif %}
       </td>
@@ -93,7 +93,7 @@
           {%- endif -%}
         {%- else -%}
           {#- named spawner row -#}
-          <a role="button" class="delete-server btn btn-xs btn-warning">delete server</a>
+          <a role="button" class="delete-server btn btn-xs btn-warning">delete cluster</a>
         {%- endif -%}
       </td>
       </tr>
@@ -109,17 +109,17 @@
   This operation cannot be undone.
 {% endcall %}
 
-{% call modal('Stop All Servers', btn_label='Stop All', btn_class='btn-danger stop-all-button') %}
-  Are you sure you want to stop all your users' servers? Kernels will be shutdown and unsaved data may be lost.
+{% call modal('Stop All Clusters', btn_label='Stop All', btn_class='btn-danger stop-all-button') %}
+  Are you sure you want to stop all your users' clusters? Kernels will be shutdown and unsaved data may be lost.
 {% endcall %}
 
-{% call modal('Start All Servers', btn_label='Start All', btn_class='btn-primary start-all-button') %}
-  Are you sure you want to start all servers? This can slam your server resources.
+{% call modal('Start All Clusters', btn_label='Start All', btn_class='btn-primary start-all-button') %}
+  Are you sure you want to start all clusters? This can slam your cluster resources.
 {% endcall %}
 
 {% call modal('Shutdown Hub', btn_label='Shutdown', btn_class='btn-danger shutdown-button') %}
   Are you sure you want to shutdown the Hub?
-  You can choose to leave the proxy and/or single-user servers running by unchecking the boxes below:
+  You can choose to leave the proxy and/or single-user clusterss running by unchecking the boxes below:
   <div class="checkbox">
     <label>
       <input type="checkbox" class="shutdown-proxy-checkbox">Shutdown proxy
@@ -127,7 +127,7 @@
   </div>
   <div class="checkbox">
     <label>
-      <input type="checkbox" class="shutdown-servers-checkbox">Shutdown single-user-servers
+      <input type="checkbox" class="shutdown-servers-checkbox">Shutdown single-user-clusters
     </label>
   </div>
 {% endcall %}

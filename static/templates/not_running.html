@@ -10,20 +10,24 @@
       {% if failed %}
       Spawn failed
       {% else %}
-      Server not running
+      Cluster not running
       {% endif %}
       </h1>
       {% endblock %}
       {% block message %}
       <p>
         {% if failed %}
-        The latest attempt to start your server {{ server_name }} has failed.
+        The latest attempt to start your cluster {{ server_name }} has failed.
+      </p>
         {% if failed_message %}
-          {{ failed_message }}
+          <p class="spawn-error-msg text-danger">
+            {{ failed_message }}
+          </p>
         {% endif %}
+      <p>
         Would you like to retry starting it?
         {% else %}
-        Your server {{ server_name }} is not running. Would you like to start it?
+        Your cluster {{ server_name }} is not running. Would you like to start it?
         {% endif %}
       </p>
       {% endblock %}
@@ -34,7 +38,7 @@
         {% else %}
         Launch
         {% endif %}
-        Server {{ server_name }}
+        Cluster {{ server_name }}
       </a>
       {% endblock %}
     </div>
