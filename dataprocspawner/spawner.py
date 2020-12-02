@@ -1121,6 +1121,20 @@ class DataprocSpawner(Spawner):
 
     return [z for z in zones.split(',') if z in region_zone_letters] or region_zone_letters
 
+  def _get_custom_image_version(self, custom_image):
+    project = custom_image.split('/')[1]
+    image = custom_image.split('/')[4]
+    goog_version = ''
+    try:
+      request = self.compute_client.images().get(project=project, image=image)
+      response = request.execute()
+      version = re.split(r'(-debian.*|-ubuntu.*)', response['labels']['goog-dataproc-version'])
+      goog_version = version[0].replace('-', '.') + version[1]
+    except Exception as e: ## pylint: disable=broad-except
+      self.log.info(f'Failed to process Dataproc custom image version:\n\t{e}')
+
+    return goog_version
+
 
 ################################################################################
 # Cluster configuration
@@ -1181,22 +1195,36 @@ class DataprocSpawner(Spawner):
           }
       )
 
+    if self.user_options.get('init_actions'):
+      for init_action in self.user_options.get('init_actions').split(','):
+        if init_action.startswith('gs://'):
+          config['initialization_actions'].append(
+            {
+              'executable_file': init_action
+            }
+          )
+
+    if self.user_options.get('image_version'):
+      if self.user_options.get('custom_image'):
+        config['master_config']['image_uri'] = self.user_options.get('custom_image')
+        config['worker_config']['image_uri'] = self.user_options.get('custom_image')
+        config['software_config']['image_version'] = \
+          self._get_custom_image_version(self.user_options.get('custom_image'))
+      else:
+        config['software_config']['image_version'] = self.user_options.get('image_version')
+
     if self.user_options.get('master_node_type'):
-      config.setdefault('master_config', {})
       config['master_config']['machine_type_uri'] = self.user_options.get('master_node_type')
 
     if self.user_options.get('worker_node_type'):
-      config.setdefault('worker_config', {})
       config['worker_config']['machine_type_uri'] = self.user_options.get('worker_node_type')
 
     if self.user_options.get('master_disk_type'):
-      config.setdefault('master_config', {})
       config['master_config'].setdefault('disk_config', {})
       config['master_config']['disk_config']['boot_disk_type'] = \
         self.user_options.get('master_disk_type')
 
     if self.user_options.get('worker_disk_type'):
-      config.setdefault('worker_config', {})
       config['worker_config'].setdefault('disk_config', {})
       config['worker_config']['disk_config']['boot_disk_type'] = \
         self.user_options.get('worker_disk_type')
@@ -1206,7 +1234,6 @@ class DataprocSpawner(Spawner):
         val = int(self.user_options.get('master_disk_size'))
         if val < 15:
           val = 15
-        config.setdefault('master_config', {})
         config['master_config'].setdefault('disk_config', {})
         config['master_config']['disk_config']['boot_disk_size_gb'] = val
       except ValueError:
@@ -1217,7 +1244,6 @@ class DataprocSpawner(Spawner):
         val = int(self.user_options.get('worker_disk_size'))
         if val < 15:
           val = 15
-        config.setdefault('worker_config', {})
         config['worker_config'].setdefault('disk_config', {})
         config['worker_config']['disk_config']['boot_disk_size_gb'] = val
       except ValueError:
@@ -1228,10 +1254,31 @@ class DataprocSpawner(Spawner):
         val = int(self.user_options.get('worker_node_amount'))
         if val < 2:
           val = 2
-        config.setdefault('worker_config', {})
         config['worker_config']['num_instances'] = val
       except ValueError:
         pass
+
+    if self.user_options.get('sec_worker_disk_type'):
+      config.setdefault('secondary_worker_config', {})
+      config['secondary_worker_config'].setdefault('disk_config', {})
+      config['secondary_worker_config']['disk_config']['boot_disk_type'] = \
+        self.user_options.get('sec_worker_disk_type')
+
+    if self.user_options.get('sec_worker_disk_size'):
+      try:
+        val = int(self.user_options.get('sec_worker_disk_size'))
+        if val < 15:
+          val = 15
+        config.setdefault('secondary_worker_config', {})
+        config['secondary_worker_config'].setdefault('disk_config', {})
+        config['secondary_worker_config']['disk_config']['boot_disk_size_gb'] = val
+      except ValueError:
+        pass
+
+    if self.user_options.get('sec_worker_node_amount'):
+      config.setdefault('secondary_worker_config', {})
+      config['secondary_worker_config']['num_instances'] = \
+        int(self.user_options.get('sec_worker_node_amount'))
 
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
     if autoscaling_policy:
@@ -1299,6 +1346,7 @@ class DataprocSpawner(Spawner):
       # Defines default values if some key is not exists
       cluster_data['config'].setdefault('gce_cluster_config', {})
       cluster_data['config'].setdefault('master_config', {})
+      cluster_data['config'].setdefault('worker_config', {})
       cluster_data['config'].setdefault('initialization_actions', [])
       cluster_data['config'].setdefault('software_config', {})
       cluster_data['config']['software_config'].setdefault('properties', {})
