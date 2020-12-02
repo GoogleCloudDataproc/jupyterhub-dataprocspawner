@@ -217,9 +217,10 @@ function set-default-configs() {
 function set-default-name-pattern() {
   if [ -z "${CLUSTER_NAME_PATTERN}" ];
   then
-    default_name_pattern="dataprochub-$( curl -s ${metadata_base_url}/instance/name -H "Metadata-Flavor: Google" )-{}"
+    default_name_pattern="dataprochub-{}"
     echo "Default name pattern not specified. Setting default name pattern to ${default_name_pattern}"
     export CLUSTER_NAME_PATTERN="${default_name_pattern}"
+    export ALLOW_RANDOM_CLUSTER_NAMES="true"
   fi
 }
 
