@@ -742,6 +742,10 @@ class TestDataprocSpawner:
       config_string = open('./tests/test_data/basic_uri.yaml', 'r').read()
       return config_string
 
+    def test_read_file_network(*args, **kwargs):
+      config_string = open('./tests/test_data/basic_with_network.yaml', 'r').read()
+      return config_string
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -787,7 +791,21 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
 
     assert config_built['config']['gce_cluster_config']['subnetwork_uri'] == "projects/test-project/regions/us-east1/subnetworks/default"
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_network)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
 
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a'
+    }
+
+    config_built = spawner._build_cluster_config()
+    assert 'subnetwork_uri' not in config_built['config']['gce_cluster_config']
 
   def test_locations(self, monkeypatch):
     import yaml

@@ -1307,7 +1307,8 @@ class DataprocSpawner(Spawner):
         metadata = cluster_data['config']['gce_cluster_config']['metadata']
 
       # Sets default network for the cluster if not already provided in YAML.
-      if 'subnetwork_uri' not in cluster_data['config']['gce_cluster_config']:
+      if ('network_uri' not in cluster_data['config']['gce_cluster_config'] and
+          'subnetwork_uri' not in cluster_data['config']['gce_cluster_config']):
         if self.dataproc_default_subnet:
           (cluster_data['config']['gce_cluster_config']
            ['subnetwork_uri']) = self.dataproc_default_subnet
