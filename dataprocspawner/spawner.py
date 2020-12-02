@@ -1110,6 +1110,7 @@ class DataprocSpawner(Spawner):
   def _get_custom_image_version(self, custom_image):
     project = custom_image.split('/')[1]
     image = custom_image.split('/')[4]
+    goog_version = ''
     try:
       request = self.compute_client.images().get(project=project, image=image)
       response = request.execute()
