@@ -1181,13 +1181,13 @@ class DataprocSpawner(Spawner):
           }
       )
 
-    if self.user_options.get('condo_packages'):
+    if self.user_options.get('conda_packages'):
       config.setdefault('gce_cluster_config', {})
       config['gce_cluster_config'].setdefault('metadata', {})
       config['gce_cluster_config']['metadata'].setdefault('CONDA_PACKAGES', '')
       conda_packages = set(filter(None, set(
           config['gce_cluster_config']['metadata']['CONDA_PACKAGES'].split(' ')
-          + self.user_options.get('condo_packages').split(' '))))
+          + self.user_options.get('conda_packages').split(' '))))
       config['gce_cluster_config']['metadata']['CONDA_PACKAGES'] = ' '.join(conda_packages)
       config['initialization_actions'].append(
           {
@@ -1281,7 +1281,7 @@ class DataprocSpawner(Spawner):
         int(self.user_options.get('sec_worker_node_amount'))
 
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
-    if autoscaling_policy:
+    if autoscaling_policy != 'None':
       cluster_data['config']['autoscaling_config'] = {
           'policy_uri': (
               f"""https://www.googleapis.com/compute/v1/projects/"""

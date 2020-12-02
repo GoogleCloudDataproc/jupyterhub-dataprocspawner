@@ -33,6 +33,7 @@
 
     {% block stylesheet %}
     <link rel="stylesheet" href="{{ static_url("css/style.min.css") }}" type="text/css"/>
+
     {% endblock %}
     <script src="{{static_url("components/requirejs/require.js") }}" type="text/javascript" charset="utf-8"></script>
     <script src="{{static_url("components/jquery/dist/jquery.min.js") }}" type="text/javascript" charset="utf-8"></script>
@@ -74,18 +75,18 @@
       #thenavbar { margin-top: 3px; }
       #jupyterhub-logo { margin-right: 10px; }
       .navbar-default .navbar-text { color: #fff; }
-      .navbar-default .navbar-nav>li>a {  
+      .navbar-default .navbar-nav>li>a {
         color: #fff;
         font-family: Roboto;
         font-size: 18px;
         font-weight: 400;
         letter-spacing: 0.24px;
       }
-      
+
       .btn-jupyter, #start, .btn-primary { background-color: #3367d6; border-color: #0d55cb; }
-      .btn-jupyter:hover, #start:hover, .btn-primary:hover, 
-      .btn-jupyter:active, #start:active, .btn-primary:active, 
-      .btn-jupyter:focus, #start:focus, .btn-primary:focus { 
+      .btn-jupyter:hover, #start:hover, .btn-primary:hover,
+      .btn-jupyter:active, #start:active, .btn-primary:active,
+      .btn-jupyter:focus, #start:focus, .btn-primary:focus {
         -webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none;
         background-color:#357ae8;
         background-image:-webkit-linear-gradient(top,#4d90fe,#357ae8);background-image:-moz-linear-gradient(top,#4d90fe,#357ae8);background-image:-ms-linear-gradient(top,#4d90fe,#357ae8);background-image:-o-linear-gradient(top,#4d90fe,#357ae8);background-image:linear-gradient(top,#4d90fe,#357ae8);
@@ -93,7 +94,10 @@
         border-bottom-color:#2f5bb7;
       }
       .btn-ml-tb {margin:20px 0!important;}
-      #spawn_form { /*text-align: center;*/ }
+      #spawn_form {
+        /*text-align: center;*/
+        width: 550px;
+      }
       #spawn_form select.form-control { margin-bottom: 10px; }
       #spawn_form .btn-jupyter { width: 100px; }
 
@@ -143,7 +147,7 @@
         -webkit-border-radius: 2px;
         border-radius: 2px;
         background: #fff;
-        max-width: 440px;
+        max-width: 550px;
         margin:10px 0;
       }
 
@@ -289,7 +293,7 @@
       </div>
     {% endcall %}
   </div>
-  
+
 </div>
 
 {% block script %}
