@@ -938,7 +938,7 @@ class DataprocSpawner(Spawner):
       if self.name:
         cluster_name += f'-{self.name}'
       if self.rand_str:
-        cluster_name += f'-{self.rand_str}'
+        cluster_name += self.rand_str
     return cluster_name
 
   def calculate_config_value(self, key, path):

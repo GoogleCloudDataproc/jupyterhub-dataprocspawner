@@ -81,6 +81,7 @@ function set-environment-from-metadata {
   local allow_custom_clusters
   local machine_types_list
   local notebooks_examples_location
+  local hub_allow_named_servers
 
   notebooks_location=$( curl -s -f \
     ${metadata_base_url}/instance/attributes/notebooks-location -H "Metadata-Flavor: Google" || echo )
@@ -98,6 +99,8 @@ function set-environment-from-metadata {
     ${metadata_base_url}/instance/attributes/dataproc-machine-types-list -H "Metadata-Flavor: Google" || echo )
   notebooks_examples_location=$( curl -s -f \
     ${metadata_base_url}/instance/attributes/notebooks-examples-location -H "Metadata-Flavor: Google" || echo )
+  hub_allow_named_servers=$( curl -s -f \
+    ${metadata_base_url}/instance/attributes/hub-allow-named-servers -H "Metadata-Flavor: Google" || echo )
 
   if [ -n "${notebooks_location}" ]; then
     export NOTEBOOKS_LOCATION="${notebooks_location}"
@@ -122,6 +125,9 @@ function set-environment-from-metadata {
   fi
   if [ -n "${notebooks_examples_location}" ]; then
     export NOTEBOOKS_EXAMPLES_LOCATION="${notebooks_examples_location}"
+  fi
+  if [ -n "${hub_allow_named_servers}" ]; then
+    export HUB_ALLOW_NAMED_SERVERS="${hub_allow_named_servers}"
   fi
 }
 
