@@ -345,23 +345,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
               type="radio"
               id="image-radio4"
               name="image_version"
-              value="1.3-debian10"/>
-            <div class="mdc-radio__background">
-              <div class="mdc-radio__outer-circle"></div>
-              <div class="mdc-radio__inner-circle"></div>
-            </div>
-            <div class="mdc-radio__ripple"></div>
-          </div>
-          <label for="image-radio4">1.3</label>
-        </div>
-        <br />
-        <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
-          <div class="mdc-radio">
-            <input
-              class="mdc-radio__native-control"
-              type="radio"
-              id="image-radio5"
-              name="image_version"
               value="custom"/>
             <div class="mdc-radio__background">
               <div class="mdc-radio__outer-circle"></div>
@@ -369,7 +352,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
             </div>
             <div class="mdc-radio__ripple"></div>
           </div>
-          <label for="image-radio5">Custom image</label>
+          <label for="image-radio4">Custom image</label>
         </div>
         <br />
         <br />
@@ -832,6 +815,8 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_hive_settings = """
+    <h2 class="jupyter-form__group-title">Hive settings</h2>
+    <br />
     <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
       <span class="mdc-notched-outline">
         <span class="mdc-notched-outline__leading"></span>
@@ -905,9 +890,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   body = "\n".join([
-    html_autoscaling_policy,
-    html_pip_packages,
-    html_conda_packages,
     html_cluster_image,
     html_master_base,
     html_master_type,
@@ -923,6 +905,9 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_secondary_worker_disk_size,
     html_secondary_worker_amount,
     html_adv_base,
+    html_autoscaling_policy,
+    html_pip_packages,
+    html_conda_packages,
     html_custom_labels,
     html_init_actions,
     html_hive_settings
