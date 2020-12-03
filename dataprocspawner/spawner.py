@@ -1433,10 +1433,10 @@ class DataprocSpawner(Spawner):
     cluster_data['config']['software_config'].setdefault('optional_components', [])
     # Converts component's string to its int value (See Component protobuf in
     # google-cloud-dataproc library). This allows to pass strings in yaml.
-    optional_components = set([
+    optional_components = {
         Component[c].value if isinstance(c, str) else c for
         c in cluster_data['config']['software_config']['optional_components']
-    ])
+    }
 
     if self.force_add_jupyter_component:
       if Component['JUPYTER'].value not in optional_components:
