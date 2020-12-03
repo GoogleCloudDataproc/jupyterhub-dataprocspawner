@@ -318,7 +318,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
             </div>
             <div class="mdc-radio__ripple"></div>
           </div>
-          <label for="image-radio2">1.5</label>
+          <label for="image-radio2">1.5-debian10</label>
         </div>
         <br />
         <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
@@ -335,7 +335,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
             </div>
             <div class="mdc-radio__ripple"></div>
           </div>
-          <label for="image-radio3">1.4</label>
+          <label for="image-radio3">1.4-debian10</label>
         </div>
         <br />
         <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
