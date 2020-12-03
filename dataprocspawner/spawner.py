@@ -1049,39 +1049,30 @@ class DataprocSpawner(Spawner):
             'your admnistrator.')
     return uri_geo or uri
 
-  def _validate_image_version_supports_component_gateway(self, image_version):
-    """Validate whether given image version supports Component Gateway.
+  def _image_version_supports_anaconda(self, image_version):
+    """Validate whether given image version supports Anaconda.
 
-    Earlier image versions do not support CG with JupyterHub. This function
-    takes a Dataproc image version specification like `1.3.25-debian9` or `1.5`
-    and returns whether Component Gateway is supported.
-    """
-    # Map minor version to minimum subminor that supports CG with JupyterHub
-    min_supported_images = {
-        '1.3': 59,
-        '1.4': 30,
-        '1.5': 5,
-        '2.0': 0
-    }
-    version = image_version.split('-')[0]
+    Preview images after 2.0.0-RC12 do not support Anaconda.
+    For older versions, we force Anaconda to be activated in
+    order for Jupyter to work correctly."""
+    parts = image_version.split('-')
 
-    # Extract minor and subminor versions ('1.3.5' -> '1.3', 5)
-    if len(version.split('.')) < 3:
-      # Subminor version not specified, head images always support CG
-      return True
+    if parts[0].lower() == 'preview':
+      return False
+    elif parts[0] == '2.0.0':
+      if len(parts) < 3:
+        return False
+      if parts[1] in [f'RC{i}' for i in range(1, 12)]:
+        return True
+
     try:
-      subminor_version = int(version.split('.')[2])
+      major_version = int(parts[0].split('.')[0])
     except ValueError as e:
       self.log.warning('Failed to parse image version "%s": %s' % (image_version, e))
       # Something weird is going on with image version format, fail open
       return True
 
-    minor_version = '.'.join(version.split('.')[:2])
-    if minor_version in min_supported_images:
-      return subminor_version >= min_supported_images[minor_version]
-
-    # Unrecognized minor version, fail open
-    return True
+    return major_version < 2
 
   def _list_to_dict(self, rlist):
     """ Converts list of user defined labels to dictionary. """
@@ -1425,6 +1416,8 @@ class DataprocSpawner(Spawner):
                  ['dataproc:jupyter.hub.env']) = self.env_str
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.menu.enabled']) = 'true'
+    (cluster_data['config']['software_config']['properties']
+                 .pop('dataproc:jupyter.hub.enabled', None))
 
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
@@ -1434,29 +1427,31 @@ class DataprocSpawner(Spawner):
       cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
     # Forces Component Gateway
-    if not self._validate_image_version_supports_component_gateway(
-        cluster_data['config']['software_config']['image_version']):
-      self._raise_exception('Image version does not support Component Gateway.')
-
     cluster_data['config'].setdefault('endpoint_config', {})
     cluster_data['config']['endpoint_config']['enable_http_port_access'] = True
 
     cluster_data['config']['software_config'].setdefault('optional_components', [])
     # Converts component's string to its int value (See Component protobuf in
     # google-cloud-dataproc library). This allows to pass strings in yaml.
-    optional_components = [
+    optional_components = {
         Component[c].value if isinstance(c, str) else c for
         c in cluster_data['config']['software_config']['optional_components']
-    ]
+    }
 
     if self.force_add_jupyter_component:
       if Component['JUPYTER'].value not in optional_components:
-        optional_components.append(Component['JUPYTER'].value)
-      if Component['ANACONDA'].value not in optional_components:
-        optional_components.append(Component['ANACONDA'].value)
+        optional_components.add(Component['JUPYTER'].value)
+      # preview (2.x) images and up do not support Anaconda
+      if self._image_version_supports_anaconda(
+          cluster_data['config']['software_config']['image_version']):
+        if Component['ANACONDA'].value not in optional_components:
+          optional_components.add(Component['ANACONDA'].value)
+      else:
+        if Component['ANACONDA'].value in optional_components:
+          optional_components.remove(Component['ANACONDA'].value)
 
     cluster_data['config']['software_config']['optional_components'] = (
-        optional_components
+        list(optional_components)
     )
 
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})

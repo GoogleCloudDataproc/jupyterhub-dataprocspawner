@@ -12,6 +12,7 @@ config:
       dataproc:jupyter.hub.args: 'test-args-str-yaml'
       dataproc:jupyter.notebook.gcs.dir: ''
       dataproc:jupyter.hub.env: 'test-env-str-yaml'
+      dataproc:jupyter.hub.enabled: 'true'
   masterConfig:
     numInstances: 1
     machineTypeUri: n1-standard-4

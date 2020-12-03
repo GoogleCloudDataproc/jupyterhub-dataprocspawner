@@ -372,6 +372,23 @@ class TestDataprocSpawner:
 
     def test_read_file(*args, **kwargs):
       config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      print(config_string)
+      return config_string
+
+    def test_read_file_preview(*args, **kwargs):
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      config_string = config_string.replace('1.4.16', 'preview')
+      print(config_string)
+      return config_string
+
+    def test_read_file_2_0(*args, **kwargs):
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      return config_string.replace('1.4.16', '2.0.0-RC19')
+
+    def test_read_file_2_0_with_anaconda(*args, **kwargs):
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      config_string = config_string.replace('1.4.16', '2.0.0-RC19')
+      config_string += "\n    optionalComponents:\n    - JUPYTER\n    - ANACONDA\n"
       return config_string
 
     def test_clustername(*args, **kwargs):
@@ -409,6 +426,28 @@ class TestDataprocSpawner:
 
     assert 'dataproc:jupyter.hub.args' in config_built['config']['software_config']['properties']
     assert 'dataproc:jupyter.hub.env' in config_built['config']['software_config']['properties']
+
+    spawner.user_options = {
+      'cluster_type': 'minimum.yaml',
+    }
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_preview)
+
+    config_built = spawner._build_cluster_config()
+    print(config_built)
+    assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
+    assert Component['ANACONDA'].value not in config_built['config']['software_config']['optional_components']
+
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_2_0)
+
+    config_built = spawner._build_cluster_config()
+    assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
+    assert Component['ANACONDA'].value not in config_built['config']['software_config']['optional_components']
+
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_2_0_with_anaconda)
+
+    config_built = spawner._build_cluster_config()
+    assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
+    assert Component['ANACONDA'].value not in config_built['config']['software_config']['optional_components']
 
   def test_cluster_definition_check_core_fields(self, monkeypatch):
     """ Values chosen by the user through the form overwrites others. If the
@@ -491,6 +530,8 @@ class TestDataprocSpawner:
 
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.args'] == 'test-args-str'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.menu.enabled'] == 'true'
+    assert 'dataproc:jupyter.hub.enabled' not in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_overrides(self, monkeypatch):
     """Check that config settings incompatible with JupyterHub are overwritten correctly."""
@@ -851,7 +892,7 @@ class TestDataprocSpawner:
     assert config_built['config']['secondary_worker_config']['machine_type_uri'] == 'n1-standard-4'
     assert config_built['config']['master_config']['accelerators'][0]['accelerator_type_uri'] == 'nvidia-tesla-v100'
 
-  def test_image_version_supports_component_gateway(self):
+  def test_image_version_supports_anaconda(self):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -861,24 +902,31 @@ class TestDataprocSpawner:
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
                               user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
                               compute=mock_compute_client, project='test-project')
-    assert spawner._validate_image_version_supports_component_gateway('1.3') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.3-debian9') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.3.6-debian9') is False
-    assert spawner._validate_image_version_supports_component_gateway('1.3.59-debian9') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.3.999-debian9') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.4-debian10') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.4.6-debian10') is False
-    assert spawner._validate_image_version_supports_component_gateway('1.4.31-debian10') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.5-debian10') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.5.0-debian10') is False
-    assert spawner._validate_image_version_supports_component_gateway('1.5.5-debian10') is True
-    assert spawner._validate_image_version_supports_component_gateway('2') is True
-    assert spawner._validate_image_version_supports_component_gateway('2.0') is True
-    assert spawner._validate_image_version_supports_component_gateway('2.0.0') is True
-    assert spawner._validate_image_version_supports_component_gateway('2.3.0') is True
-    assert spawner._validate_image_version_supports_component_gateway('2.0.0-RC1-preview') is True
-    assert spawner._validate_image_version_supports_component_gateway('weird-unexpected-version-124.3.v2.2020-02-15') is True
-    assert spawner._validate_image_version_supports_component_gateway('1.3.weird-version-again') is True
+    assert spawner._image_version_supports_anaconda('1.3') is True
+    assert spawner._image_version_supports_anaconda('1.3-debian9') is True
+    assert spawner._image_version_supports_anaconda('1.3.6-debian9') is True
+    assert spawner._image_version_supports_anaconda('1.3.59-debian9') is True
+    assert spawner._image_version_supports_anaconda('1.3.999-debian9') is True
+    assert spawner._image_version_supports_anaconda('1.4-debian10') is True
+    assert spawner._image_version_supports_anaconda('1.4.6-debian10') is True
+    assert spawner._image_version_supports_anaconda('1.4.31-debian10') is True
+    assert spawner._image_version_supports_anaconda('1.5-debian10') is True
+    assert spawner._image_version_supports_anaconda('1.5.0-debian10') is True
+    assert spawner._image_version_supports_anaconda('1.5.5-debian10') is True
+    assert spawner._image_version_supports_anaconda('2') is False
+    assert spawner._image_version_supports_anaconda('2.0') is False
+    assert spawner._image_version_supports_anaconda('2.0-ubuntu18') is False
+    assert spawner._image_version_supports_anaconda('2.0.0') is False
+    assert spawner._image_version_supports_anaconda('2.0.0-debian10') is False
+    assert spawner._image_version_supports_anaconda('2.0.1') is False
+    assert spawner._image_version_supports_anaconda('2.3.0') is False
+    assert spawner._image_version_supports_anaconda('2.0.0-RC1-debian10') is True
+    assert spawner._image_version_supports_anaconda('2.0.0-RC7-debian10') is True
+    assert spawner._image_version_supports_anaconda('2.0.0-RC11-debian10') is True
+    assert spawner._image_version_supports_anaconda('2.0.0-RC12-debian10') is False
+    assert spawner._image_version_supports_anaconda('2.0.0-RC77-debian10') is False
+    assert spawner._image_version_supports_anaconda('weird-unexpected-version-124.3.v2.2020-02-15') is True
+    assert spawner._image_version_supports_anaconda('1.3.weird-version-again') is True
 
   def test_validate_proto(self, monkeypatch):
     import yaml
