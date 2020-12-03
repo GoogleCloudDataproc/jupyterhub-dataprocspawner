@@ -491,6 +491,8 @@ class TestDataprocSpawner:
 
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.args'] == 'test-args-str'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.menu.enabled'] == 'true'
+    assert 'dataproc:jupyter.hub.enabled' not in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_overrides(self, monkeypatch):
     """Check that config settings incompatible with JupyterHub are overwritten correctly."""

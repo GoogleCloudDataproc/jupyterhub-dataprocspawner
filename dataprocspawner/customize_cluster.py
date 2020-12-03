@@ -129,11 +129,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
         <label for="customRadio3">1.4</label>
       </div>
       <div>
-        <input onclick="document.getElementById('custom_image').disabled = true;"
-          type="radio" id="image-radio4" name="image_version" value="1.3-debian10">
-        <label for="customRadio4">1.3</label>
-      </div>
-      <div>
         <input onclick="document.getElementById('custom_image').disabled = false;"
           type="radio" id="image-radio5" name="image_version">
         <label for="customRadio5">Custom image</label>

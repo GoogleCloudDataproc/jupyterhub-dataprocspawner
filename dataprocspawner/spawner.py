@@ -1425,6 +1425,7 @@ class DataprocSpawner(Spawner):
                  ['dataproc:jupyter.hub.env']) = self.env_str
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.menu.enabled']) = 'true'
+    cluster_data['config']['software_config']['properties'].pop('dataproc:jupyter.hub.enabled', None)
 
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
