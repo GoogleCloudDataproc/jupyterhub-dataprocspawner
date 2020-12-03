@@ -1433,22 +1433,25 @@ class DataprocSpawner(Spawner):
     cluster_data['config']['software_config'].setdefault('optional_components', [])
     # Converts component's string to its int value (See Component protobuf in
     # google-cloud-dataproc library). This allows to pass strings in yaml.
-    optional_components = [
+    optional_components = set([
         Component[c].value if isinstance(c, str) else c for
         c in cluster_data['config']['software_config']['optional_components']
-    ]
+    ])
 
     if self.force_add_jupyter_component:
       if Component['JUPYTER'].value not in optional_components:
-        optional_components.append(Component['JUPYTER'].value)
+        optional_components.add(Component['JUPYTER'].value)
       # preview (2.x) images and up do not support Anaconda
       if self._image_version_supports_anaconda(
           cluster_data['config']['software_config']['image_version']):
         if Component['ANACONDA'].value not in optional_components:
-          optional_components.append(Component['ANACONDA'].value)
+          optional_components.add(Component['ANACONDA'].value)
+      else:
+        if Component['ANACONDA'].value in optional_components:
+          optional_components.remove(Component['ANACONDA'].value)
 
     cluster_data['config']['software_config']['optional_components'] = (
-        optional_components
+        list(optional_components)
     )
 
     # Ensures that durations match the Protobuf format ({seconds:300, nanos:0})

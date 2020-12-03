@@ -385,6 +385,12 @@ class TestDataprocSpawner:
       config_string = open('./tests/test_data/minimum.yaml', 'r').read()
       return config_string.replace('1.4.16', '2.0.0-RC19')
 
+    def test_read_file_2_0_with_anaconda(*args, **kwargs):
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      config_string = config_string.replace('1.4.16', '2.0.0-RC19')
+      config_string += "\n    optionalComponents:\n    - JUPYTER\n    - ANACONDA\n"
+      return config_string
+
     def test_clustername(*args, **kwargs):
       return 'test-clustername'
 
@@ -432,6 +438,12 @@ class TestDataprocSpawner:
     assert Component['ANACONDA'].value not in config_built['config']['software_config']['optional_components']
 
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_2_0)
+
+    config_built = spawner._build_cluster_config()
+    assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
+    assert Component['ANACONDA'].value not in config_built['config']['software_config']['optional_components']
+
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file_2_0_with_anaconda)
 
     config_built = spawner._build_cluster_config()
     assert Component['JUPYTER'].value in config_built['config']['software_config']['optional_components']
