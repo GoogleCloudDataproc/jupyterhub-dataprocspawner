@@ -28,7 +28,7 @@ cp ~/.config/gcloud/legacy_credentials/"${USER_EMAIL}"/adc.json /tmp/keys/applic
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 
 # Builds
-docker build -t "${DOCKER_IMAGE}" -f docker/Dockerfile .
+docker build -t "${DOCKER_IMAGE}" -f docker/Dockerfile . --no-cache
 
 # Runs
 # For named servers, add -e HUB_ALLOW_NAMED_SERVERS="True"

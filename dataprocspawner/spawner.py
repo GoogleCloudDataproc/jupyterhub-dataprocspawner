@@ -422,6 +422,7 @@ class DataprocSpawner(Spawner):
     self.log.info(f'start_notebook_cmd is: {start_notebook_cmd}')
 
     # Server needs default values even if user.py>spawn uses dynamic ones.
+    # base_url gets overwritten.
     orm_server = orm.Server(
         proto='https',
         ip=self.component_gateway_url,
