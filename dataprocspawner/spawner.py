@@ -1057,9 +1057,9 @@ class DataprocSpawner(Spawner):
     order for Jupyter to work correctly."""
     parts = image_version.split('-')
 
-    if parts[0].lower() == "preview":
+    if parts[0].lower() == 'preview':
       return False
-    elif parts[0] == "2.0.0":
+    elif parts[0] == '2.0.0':
       if len(parts) < 3:
         return False
       if parts[1] in [f'RC{i}' for i in range(1, 12)]:
@@ -1416,7 +1416,8 @@ class DataprocSpawner(Spawner):
                  ['dataproc:jupyter.hub.env']) = self.env_str
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.menu.enabled']) = 'true'
-    cluster_data['config']['software_config']['properties'].pop('dataproc:jupyter.hub.enabled', None)
+    (cluster_data['config']['software_config']['properties']
+                 .pop('dataproc:jupyter.hub.enabled', None))
 
     if self.gcs_user_folder:
       (cluster_data['config']['software_config']['properties']
@@ -1437,7 +1438,6 @@ class DataprocSpawner(Spawner):
         c in cluster_data['config']['software_config']['optional_components']
     ]
 
-    image_version = cluster_data['config']['software_config']['image_version']
     if self.force_add_jupyter_component:
       if Component['JUPYTER'].value not in optional_components:
         optional_components.append(Component['JUPYTER'].value)
