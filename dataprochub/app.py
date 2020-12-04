@@ -38,9 +38,9 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
     self.log.info(f'# spawner._server value is {tmp_spawner_server}')
     if type(tmp_spawner_server) == Server:
       self.log.debug('# spawner._server is a Server')
-      redirect_url_parts = tmp_spawner_server.url.split('/')
-      redirect_url = '/'.join(redirect_url_parts[:-3])
-      redirect_url = f'{redirect_url}/jupyter/lab'
+      scheme, url =  tmp_spawner_server.url.split('://')
+      redirect_url = url.split('/')[0]
+      redirect_url = f'{scheme}://{redirect_url}/jupyter/lab'
     else:
       self.log.debug('# spawner._server is most likely a DataprocHubServer')
       redirect_url = tmp_spawner.component_gateway_url
