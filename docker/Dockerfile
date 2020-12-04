@@ -65,6 +65,7 @@ RUN pip install /tmp/dataprocspawner/
 
 # Dataproc Hub design
 COPY static/templates/ /etc/jupyterhub/templates/
+COPY static/mdc/ /usr/local/share/jupyterhub/static/mdc/
 
 COPY docker/jupyterhub_config.py .
 
