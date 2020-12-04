@@ -14,6 +14,7 @@
 
 """ Replaces default JupyterHub.app to handle redirects. """
 import re
+
 from jupyterhub.app import JupyterHub
 from jupyterhub.handlers.base import UserUrlHandler
 from jupyterhub.objects import Server
@@ -27,19 +28,12 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
     redirect_url = None
     tmp_spawner = user.spawners[spawner.name]
     tmp_spawner_server = tmp_spawner._server
-    # When restarting the Docker container, spawner._server is a Server instead
-    # of being a DataprocHubServer. We extract the component_gateway_url from
-    # that Server(
-    #   url=https://<CG_URL>:443/user/matthieum/,
-    #   bind_url=https://<CG_URL>:443/user/matthieum/
-    # )
+    self.log.debug(f'# spawners are {user.spawners}')
     self.log.info(f'# spawner._server value is {tmp_spawner_server}')
     if type(tmp_spawner_server) == Server:
-      self.log.debug('# spawner._server is a Server')
       url_parts = re.search('(.+?)://(.+?)/(.+?)', tmp_spawner_server.url)
       redirect_url = f'{url_parts.group(1)}://{url_parts.group(2)}/jupyter/lab'
     else:
-      self.log.debug('# spawner._server is most likely a DataprocHubServer')
       redirect_url = tmp_spawner.component_gateway_url
 
     self.log.info(f'# Redirecting to notebook at {redirect_url}.')
