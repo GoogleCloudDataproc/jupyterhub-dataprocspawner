@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """ Replaces default JupyterHub.app to handle redirects. """
-
+import re
 from jupyterhub.app import JupyterHub
 from jupyterhub.handlers.base import UserUrlHandler
 from jupyterhub.objects import Server
@@ -38,9 +38,8 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
     self.log.info(f'# spawner._server value is {tmp_spawner_server}')
     if type(tmp_spawner_server) == Server:
       self.log.debug('# spawner._server is a Server')
-      scheme, url =  tmp_spawner_server.url.split('://')
-      redirect_url = url.split('/')[0]
-      redirect_url = f'{scheme}://{redirect_url}/jupyter/lab'
+      url_parts = re.search('(.+?)://(.+?)/(.+?)', tmp_spawner_server.url)
+      redirect_url = f'{url_parts.group(1)}://{url_parts.group(2)}/jupyter/lab'
     else:
       self.log.debug('# spawner._server is most likely a DataprocHubServer')
       redirect_url = tmp_spawner.component_gateway_url
