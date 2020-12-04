@@ -219,18 +219,18 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
               <span class="mdc-list-item__text">None</span>
             </li>"""
 
-  for policy in autoscaling_policies:
-    html_autoscaling_policy += f"""
-      <li class="mdc-list-item" data-value="{policy}">
-        <span class="mdc-list-item__text">{policy}</span>
-      </li>"""
+    for policy in autoscaling_policies:
+      html_autoscaling_policy += f"""
+        <li class="mdc-list-item" data-value="{policy}">
+          <span class="mdc-list-item__text">{policy}</span>
+        </li>"""
 
-  html_autoscaling_policy += """
-    \t\t</ul>
-    \t</div>
-    </div>
-    <br />
-    <br />"""
+    html_autoscaling_policy += """
+      \t\t</ul>
+      \t</div>
+      </div>
+      <br />
+      <br />"""
 
   html_pip_packages = """
     <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
