@@ -18,6 +18,7 @@ from jupyterhub.app import JupyterHub
 from jupyterhub.handlers.base import UserUrlHandler
 from jupyterhub.objects import Server
 
+
 class DataprocHubUserUrlHandler(UserUrlHandler):
   """ Extends UserUrlHandler to redirect user once spawn is done. """
 
@@ -32,9 +33,6 @@ class DataprocHubUserUrlHandler(UserUrlHandler):
     #   url=https://<CG_URL>:443/user/matthieum/,
     #   bind_url=https://<CG_URL>:443/user/matthieum/
     # )
-    # TODO(mayran): Check if when it's a Server, it can cause problems with re-
-    # adding routes or deleting the wrong ones.If so, we might need to overwrite
-    # `check_routes` in JupyterHub proxy.py
     self.log.info(f'# spawner._server value is {tmp_spawner_server}')
     if type(tmp_spawner_server) == Server:
       self.log.debug('# spawner._server is a Server')
