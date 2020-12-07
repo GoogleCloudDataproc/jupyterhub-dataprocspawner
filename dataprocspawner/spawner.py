@@ -391,6 +391,9 @@ class DataprocSpawner(Spawner):
     # Defaults zones if not specified or validate given zones if specified.
     self.dataproc_zones = self._validate_zones(self.region, self.dataproc_locations_list)
 
+    self.progressor[self.clustername()] = SimpleNamespace(
+        bar=0, logging=set(), start='', yields=[])
+
 
   ##############################################################################
   # Required functions
@@ -405,9 +408,6 @@ class DataprocSpawner(Spawner):
     """
     if not self.project:
       self._raise_exception('You need to set a project')
-
-    self.progressor[self.clustername()] = SimpleNamespace(
-        bar=0, logging=set(), start='', yields=[])
 
     if (await self.get_cluster_status(self.clustername())
         == ClusterStatus.State.DELETING):
@@ -502,7 +502,6 @@ class DataprocSpawner(Spawner):
       spawner_progressor.yields += list(yields_start)
       spawner_progressor.start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
-    # Needs a different loop in case user leaves page and comes back.
     for y in spawner_progressor.yields:
       await yield_(y)
 

@@ -46,9 +46,11 @@ class MockOperation(object):
       self, name, cluster_uuid, inner_state=None, timeout=2.0, op_done=False):
     status = SimpleNamespace(inner_state=inner_state)
     metadata = SimpleNamespace(cluster_uuid=cluster_uuid, status=status)
+    operation = SimpleNamespace(name=name)
     self.name = name
     self.op_done = op_done
     self.metadata = metadata
+    self.operation = operation
     self.timer = threading.Timer(timeout, self.set_delay_done)
     self.timer.start()
 
@@ -1056,3 +1058,56 @@ class TestDataprocSpawner:
 
     await spawner.start()
     assert await collect(spawner.progress()) == create_expected()
+
+  @pytest.mark.asyncio
+  async def test_old_progress_recovery(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_logging_client = mock.create_autospec(
+        logging_v2.LoggingServiceV2Client(credentials=fake_creds))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
+                              _mock=True, logging=mock_logging_client,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-progress')
+
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    async def collect(ait):
+      items = []
+      async for value in ait:
+        items.append(value)
+      return items
+
+    yields_start = [
+      {'message': 'Server requested.', 'progress': 0},
+      {'message': 'Operation op1 for cluster uuid cluster1-op1', 'progress': 5}
+    ]
+
+    yields_existing = [
+      {'progress': 0, 'message': 'Message 1.'},
+      {'progress': 40, 'message': 'Message 2.'},
+      {'progress': 70, 'message': 'Message 3.'},
+    ]
+
+    progressor = {
+      'test-clustername': SimpleNamespace(bar=0, logging=set(), start='', yields=yields_existing)
+    }
+
+    op = MockOperation('op1', 'cluster1-op1')
+
+    monkeypatch.setattr(spawner, '_spawn_pending', lambda: True)
+    monkeypatch.setattr(spawner, 'progressor', progressor)
+    monkeypatch.setattr(spawner, 'operation', op)
+
+    await spawner.start()
+    assert await collect(spawner._generate_progress()) == yields_existing
