@@ -1224,8 +1224,6 @@ class DataprocSpawner(Spawner):
     if self.user_options.get('master_disk_size'):
       try:
         val = int(self.user_options.get('master_disk_size'))
-        if val < 15:
-          val = 15
         config['master_config'].setdefault('disk_config', {})
         config['master_config']['disk_config']['boot_disk_size_gb'] = val
       except ValueError:
@@ -1234,8 +1232,6 @@ class DataprocSpawner(Spawner):
     if self.user_options.get('worker_disk_size'):
       try:
         val = int(self.user_options.get('worker_disk_size'))
-        if val < 15:
-          val = 15
         config['worker_config'].setdefault('disk_config', {})
         config['worker_config']['disk_config']['boot_disk_size_gb'] = val
       except ValueError:
@@ -1244,8 +1240,6 @@ class DataprocSpawner(Spawner):
     if self.user_options.get('worker_node_amount'):
       try:
         val = int(self.user_options.get('worker_node_amount'))
-        if val < 2:
-          val = 2
         config['worker_config']['num_instances'] = val
       except ValueError:
         pass
@@ -1259,8 +1253,6 @@ class DataprocSpawner(Spawner):
     if self.user_options.get('sec_worker_disk_size'):
       try:
         val = int(self.user_options.get('sec_worker_disk_size'))
-        if val < 15:
-          val = 15
         config.setdefault('secondary_worker_config', {})
         config['secondary_worker_config'].setdefault('disk_config', {})
         config['secondary_worker_config']['disk_config']['boot_disk_size_gb'] = val
