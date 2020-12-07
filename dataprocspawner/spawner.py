@@ -26,15 +26,21 @@ import proto
 import requests
 import yaml
 from async_generator import aclosing, async_generator, yield_
-from dataprocspawner.customize_cluster import (get_base_cluster_html_form,
-                                               get_custom_cluster_html_form)
+from dataprocspawner.customize_cluster import (
+    get_base_cluster_html_form,
+    get_custom_cluster_html_form,
+)
 from dataprocspawner.spawnable import DataprocHubServer
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
-from google.cloud.dataproc_v1beta2 import (Cluster, ClusterControllerClient,
-                                           ClusterStatus)
-from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import \
-    ClusterControllerGrpcTransport
+from google.cloud.dataproc_v1beta2 import (
+    Cluster,
+    ClusterControllerClient,
+    ClusterStatus,
+)
+from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import (
+    ClusterControllerGrpcTransport,
+)
 from google.cloud.dataproc_v1beta2.types.shared import Component
 from google.protobuf.json_format import MessageToDict
 from googleapiclient import discovery
@@ -327,7 +333,7 @@ class DataprocSpawner(Spawner):
     # https://googleapis.dev/python/google-api-core/latest/operation.html
     self.operation = None
     self.component_gateway_url = None
-    self.progressor = SimpleNamespace(bar=0, logging=set(), start='')
+    self.progressor = {}
 
     metadata_instance = 'http://metadata.google.internal/computeMetadata/v1/instance'
 
@@ -390,6 +396,9 @@ class DataprocSpawner(Spawner):
 
     # Defaults zones if not specified or validate given zones if specified.
     self.dataproc_zones = self._validate_zones(self.region, self.dataproc_locations_list)
+
+    self.progressor[self.clustername()] = SimpleNamespace(
+        bar=0, logging=set(), start='', yields=[])
 
 
   ##############################################################################
@@ -481,22 +490,26 @@ class DataprocSpawner(Spawner):
           "Spawn not pending, can't generate progress for %s", self._log_name)
       return
 
-    self.log.debug('# Running _generate_progress')
-
     operation_id = self.operation.operation.name.split('/')[-1]
     cluster_uuid = self.operation.metadata.cluster_uuid
     message_uuid = f'Operation {operation_id} for cluster uuid {cluster_uuid}'
 
-    if not self.progressor.logging:
+    # Recovers existing progressor status is not new or on the initial step
+    # named yields_start.
+    spawner_progressor = self.progressor[self.clustername()]
+    self.log.debug(f'# Running _generate_progress with {spawner_progressor}.')
+    if len(spawner_progressor.yields) == 0:
       yields_start = (
         {'progress': 0, 'message': 'Server requested.'},
         {'progress': 5, 'message': message_uuid},
       )
-      self.progressor.bar = 5
-      self.progressor.logging.add('yields_start')
-      self.progressor.start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-      for y in yields_start:
-        await yield_(y)
+      spawner_progressor.bar = yields_start[-1]['progress']
+      spawner_progressor.logging.add('yields_start')
+      spawner_progressor.yields += list(yields_start)
+      spawner_progressor.start = dt.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    for y in spawner_progressor.yields:
+      await yield_(y)
 
     async with aclosing(self.progress()) as progress:
       async for event in progress:
@@ -516,6 +529,7 @@ class DataprocSpawner(Spawner):
     If the operation failes, the progress bar is red and the user remains on the
     page. Error logs are displayed on the page.
     """
+    spawner_progressor = self.progressor[self.clustername()]
     if not self.operation:
       msg_existing = (
         'Trying to load progress but no cluster being created. One reason '
@@ -539,7 +553,7 @@ class DataprocSpawner(Spawner):
       f'labels."compute.googleapis.com/resource_name"="{self.clustername()}-m"'
       f' AND jsonPayload.method=({filters_methods})'
     )
-    filters = f'{filters_base} AND timestamp>="{self.progressor.start}"'
+    filters = f'{filters_base} AND timestamp>="{spawner_progressor.start}"'
     self.log.debug(f'Filters are: {filters}')
 
     operation_done = False
@@ -553,23 +567,24 @@ class DataprocSpawner(Spawner):
         await asyncio.sleep(10)
 
       try:
-        self.log.info(f'At progress {self.progressor.bar}, fetching logs if any.')
-
+        self.log.info(
+            f'# {self.clustername()}: {spawner_progressor.bar}%, fetching logs.')
         for entry in self.logging_client.list_log_entries(resources, filter_=filters):
-          if entry.insert_id not in self.progressor.logging:
+          if entry.insert_id not in spawner_progressor.logging:
             payload = MessageToDict(entry.json_payload)
             message = f'{payload.get("method")}: {payload.get("message")}'
-            self.progressor.bar += math.ceil((90 - self.progressor.bar) / 4)
-            self.log.debug(f'progress: {self.progressor.bar}, message: {message}')
-            await yield_({'progress': self.progressor.bar, 'message': message})
-            self.progressor.logging.add(entry.insert_id)
+            spawner_progressor.bar += math.ceil((90 - spawner_progressor.bar) / 4)
+            spawner_progressor.logging.add(entry.insert_id)
+            tmp_yield = {'progress': spawner_progressor.bar, 'message': message}
+            spawner_progressor.yields.append(tmp_yield)
+            await yield_(tmp_yield)
 
       except (exceptions.GoogleAPICallError, exceptions.RetryError) as e:
-        await yield_({'progress': self.progressor.bar, 'message': e.message})
+        await yield_({'progress': spawner_progressor.bar, 'message': e.message})
         continue
 
       except ValueError:
-        await yield_({'progress': self.progressor.bar, 'message': 'ValueError'})
+        await yield_({'progress': spawner_progressor.bar, 'message': 'ValueError'})
         continue
 
     if self.operation.metadata.status.inner_state == 'FAILED':
