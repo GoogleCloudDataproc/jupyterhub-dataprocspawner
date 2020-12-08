@@ -559,6 +559,7 @@ class TestDataprocSpawner:
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
+    spawner.show_spawned_clusters_in_notebooks_ui = False
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -578,6 +579,8 @@ class TestDataprocSpawner:
     # Verify that we removed cluster-specific namenode properties
     assert 'hdfs:dfs.namenode.lifeline.rpc-address' not in config_built['config']['software_config']['properties']
     assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']
+    # Verify that notebook tag is disabled
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.instance-tag.enabled'] is 'false'
 
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
     """ Values chosen by the user through the form overwrites others. If the
@@ -685,6 +688,7 @@ class TestDataprocSpawner:
             'dataproc:jupyter.hub.args': 'test-args-str',
             'dataproc:jupyter.hub.env': 'test-env-str',
             'dataproc:jupyter.hub.menu.enabled': 'true',
+            'dataproc:jupyter.instance-tag.enabled': 'false',
             'dataproc:jupyter.notebook.gcs.dir': 'gs://users-notebooks/fake',
             'key-with-dash:UPPER_UPPER': '4000',
             'key-with-dash-too:UlowUlowUlow': '85196m',

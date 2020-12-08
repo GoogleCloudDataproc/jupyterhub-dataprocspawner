@@ -212,7 +212,7 @@ function set-default-configs() {
   if [ -z "${DATAPROC_CONFIGS}" ];
   then
     echo "Dataproc configs not specified, falling back to public configs"
-    export DATAPROC_CONFIGS="gs://dataproc-spawner-dist/example-configs/single-node-cluster.yaml,gs://dataproc-spawner-dist/example-configs/standard-cluster.yaml"
+    export DATAPROC_CONFIGS="gs://dataproc-spawner-dist/example-configs/example-single-node.yaml,gs://dataproc-spawner-dist/example-configs/example-cluster.yaml"
   fi
 }
 
