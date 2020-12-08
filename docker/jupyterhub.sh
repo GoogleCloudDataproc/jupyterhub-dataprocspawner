@@ -46,6 +46,12 @@ EOT
 # and appends the proper configuration to jupyterhub_config.py.
 # For tries, GCE or local can use the default jupyterhub_config.py
 function append-to-jupyterhub-config {
+  # Adding this to prevent the Hub container to crash loop.
+  pid=$(cat /jupyterhub-proxy.pid)
+  kill -9 "${pid}"
+  rm /jupyterhub-proxy.pid
+  echo "Just killed ${pid}."
+
   # Checks if runs on AI Notebook by reading a metadata passed as an environment variable.
   jupyterhub_host_type=$( curl ${metadata_base_url}/instance/attributes/jupyterhub-host-type -H "Metadata-Flavor: Google" )
   if [ "$jupyterhub_host_type" == "ain" ]; then
