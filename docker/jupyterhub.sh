@@ -47,6 +47,7 @@ EOT
 # For tries, GCE or local can use the default jupyterhub_config.py
 function append-to-jupyterhub-config {
   # Adding this to prevent the Hub container to crash loop.
+  # Without the rm, the crash loop still happens.
   pid=$(cat /jupyterhub-proxy.pid)
   kill -9 "${pid}"
   rm /jupyterhub-proxy.pid
