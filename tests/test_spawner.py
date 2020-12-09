@@ -46,9 +46,11 @@ class MockOperation(object):
       self, name, cluster_uuid, inner_state=None, timeout=2.0, op_done=False):
     status = SimpleNamespace(inner_state=inner_state)
     metadata = SimpleNamespace(cluster_uuid=cluster_uuid, status=status)
+    operation = SimpleNamespace(name=name)
     self.name = name
     self.op_done = op_done
     self.metadata = metadata
+    self.operation = operation
     self.timer = threading.Timer(timeout, self.set_delay_done)
     self.timer.start()
 
@@ -557,6 +559,7 @@ class TestDataprocSpawner:
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
+    spawner.show_spawned_clusters_in_notebooks_ui = False
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
@@ -576,6 +579,8 @@ class TestDataprocSpawner:
     # Verify that we removed cluster-specific namenode properties
     assert 'hdfs:dfs.namenode.lifeline.rpc-address' not in config_built['config']['software_config']['properties']
     assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']
+    # Verify that notebook tag is disabled
+    assert config_built['config']['software_config']['properties']['dataproc:jupyter.instance-tag.enabled'] is 'false'
 
   def test_cluster_definition_does_form_overwrite(self, monkeypatch):
     """ Values chosen by the user through the form overwrites others. If the
@@ -683,6 +688,7 @@ class TestDataprocSpawner:
             'dataproc:jupyter.hub.args': 'test-args-str',
             'dataproc:jupyter.hub.env': 'test-env-str',
             'dataproc:jupyter.hub.menu.enabled': 'true',
+            'dataproc:jupyter.instance-tag.enabled': 'false',
             'dataproc:jupyter.notebook.gcs.dir': 'gs://users-notebooks/fake',
             'key-with-dash:UPPER_UPPER': '4000',
             'key-with-dash-too:UlowUlowUlow': '85196m',
@@ -1056,3 +1062,56 @@ class TestDataprocSpawner:
 
     await spawner.start()
     assert await collect(spawner.progress()) == create_expected()
+
+  @pytest.mark.asyncio
+  async def test_old_progress_recovery(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_logging_client = mock.create_autospec(
+        logging_v2.LoggingServiceV2Client(credentials=fake_creds))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(),
+                              _mock=True, logging=mock_logging_client,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-progress')
+
+    def test_clustername(*args, **kwargs):
+      return 'test-clustername'
+
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+    monkeypatch.setattr(spawner, "clustername", test_clustername)
+
+    async def collect(ait):
+      items = []
+      async for value in ait:
+        items.append(value)
+      return items
+
+    yields_start = [
+      {'message': 'Server requested.', 'progress': 0},
+      {'message': 'Operation op1 for cluster uuid cluster1-op1', 'progress': 5}
+    ]
+
+    yields_existing = [
+      {'progress': 0, 'message': 'Message 1.'},
+      {'progress': 40, 'message': 'Message 2.'},
+      {'progress': 70, 'message': 'Message 3.'},
+    ]
+
+    progressor = {
+      'test-clustername': SimpleNamespace(bar=0, logging=set(), start='', yields=yields_existing)
+    }
+
+    op = MockOperation('op1', 'cluster1-op1')
+
+    monkeypatch.setattr(spawner, '_spawn_pending', lambda: True)
+    monkeypatch.setattr(spawner, 'progressor', progressor)
+    monkeypatch.setattr(spawner, 'operation', op)
+
+    await spawner.start()
+    assert await collect(spawner._generate_progress()) == yields_existing
