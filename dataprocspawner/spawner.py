@@ -620,19 +620,19 @@ class DataprocSpawner(Spawner):
       string.
     """
     config_paths = []
+    if gcs_paths:
+      for path in gcs_paths.split(sep):
+        path = self._clean_gcs_path(path, return_gs=False)
+        gcs_bucket = path.split('/')[0]
+        gcs_prefix = '/'.join(path.split('/')[1:])
+        try:
+          config_paths += [
+              f'{gcs_bucket}/{b.name}' for b in
+              self.gcs_client.list_blobs(gcs_bucket, prefix=gcs_prefix)]
+        except exceptions.NotFound:
+          pass
 
-    for path in gcs_paths.split(sep):
-      path = self._clean_gcs_path(path, return_gs=False)
-      gcs_bucket = path.split('/')[0]
-      gcs_prefix = '/'.join(path.split('/')[1:])
-      try:
-        config_paths += [
-            f'{gcs_bucket}/{b.name}' for b in
-            self.gcs_client.list_blobs(gcs_bucket, prefix=gcs_prefix)]
-      except exceptions.NotFound:
-        pass
-
-    config_paths = list(set(config_paths))
+      config_paths = list(set(config_paths))
     return config_paths if config_paths else ''
 
   async def get_options_form(self):

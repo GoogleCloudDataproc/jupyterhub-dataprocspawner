@@ -29,52 +29,65 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
   html_config = f"""
     <section class="form-section">
       <br />
-      <div class="mdc-select jupyter-select mdc-select--outlined">
-        <input
-          type="hidden"
-          name="cluster_type"
-          value="{configs[0]}"/>
-        <div class="mdc-select__anchor">
-          <span class="mdc-select__selected-text"></span>
-          <span class="mdc-select__dropdown-icon">
-            <svg
-              width="10px"
-              height="5px"
-              viewBox="7 10 10 5"
-              focusable="false">
-                <polygon
-                  class="mdc-select__dropdown-icon-inactive"
-                  stroke="none"
-                  fill-rule="evenodd"
-                  points="7 10 12 15 17 10">
-                </polygon>
-                <polygon
-                  class="mdc-select__dropdown-icon-active"
-                  stroke="none"
-                  fill-rule="evenodd"
-                  points="7 15 12 10 17 15">
-                </polygon>
-            </svg>
-          </span>
-          <span class="mdc-notched-outline">
-            <span class="mdc-notched-outline__leading"></span>
-            <span class="mdc-notched-outline__notch">
-              <span class="mdc-floating-label">
-                Cluster's configuration
-              </span>
+      <div class="mdc-select mdc-select-decision jupyter-select mdc-select--outlined"
+        data-decision-value="gs://dataproc-spawner-dist/example-configs/single-node-cluster.yaml"
+        data-decision-target="#select-decision-target">
+          <input
+            type="hidden"
+            name="cluster_type"
+            value="gs://dataproc-spawner-dist/example-configs/standard-cluster.yaml"/>
+          <div class="mdc-select__anchor">
+            <span class="mdc-select__selected-text"></span>
+            <span class="mdc-select__dropdown-icon">
+              <svg
+                width="10px"
+                height="5px"
+                viewBox="7 10 10 5"
+                focusable="false">
+                  <polygon
+                    class="mdc-select__dropdown-icon-inactive"
+                    stroke="none"
+                    fill-rule="evenodd"
+                    points="7 10 12 15 17 10">
+                  </polygon>
+                  <polygon
+                    class="mdc-select__dropdown-icon-active"
+                    stroke="none"
+                    fill-rule="evenodd"
+                    points="7 15 12 10 17 15">
+                  </polygon>
+              </svg>
             </span>
-            <span class="mdc-notched-outline__trailing"></span>
-          </span>
-        </div>
-      <div class="mdc-select__menu mdc-menu mdc-menu-surface">
-        <ul class="mdc-list">"""
+            <span class="mdc-notched-outline">
+              <span class="mdc-notched-outline__leading"></span>
+              <span class="mdc-notched-outline__notch">
+                <span class="mdc-floating-label">
+                  Cluster's configuration
+                </span>
+              </span>
+              <span class="mdc-notched-outline__trailing"></span>
+            </span>
+          </div>
+          <div class="mdc-select__menu mdc-menu mdc-menu-surface">
+            <ul class="mdc-list">
+              <li class="mdc-list-item"
+                data-value="gs://dataproc-spawner-dist/example-configs/standard-cluster.yaml">
+                  <span class="mdc-list-item__text">Standard (predefined)</span>
+              </li>
+              <li class="mdc-list-item"
+                data-value="gs://dataproc-spawner-dist/example-configs/single-node-cluster.yaml">
+                  <span class="mdc-list-item__text">Single Node (predefined)</span>
+              </li>"""
 
-  for config in configs:
-    name = ".".join(config.split("/")[-1].split(".")[:-1])
+  if configs:
     html_config += f"""
-      <li class="mdc-list-item" data-value="{config}">
-        <span class="mdc-list-item__text">{name}</span>
-      </li>"""
+      <li class="mdc-list-divider" role="separator"></li>"""
+    for config in configs:
+      name = ".".join(config.split("/")[-1].split(".")[:-1])
+      html_config += f"""
+        <li class="mdc-list-item" data-value="{config}">
+          <span class="mdc-list-item__text">{name}</span>
+        </li>"""
 
   html_config += """
     \t\t</ul>
@@ -513,6 +526,9 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />
     <br />"""
 
+  html_desicion_target = """
+    <div id="select-decision-target">"""
+
   html_worker_base = """
     <h2 class="jupyter-form__group-title">Worker nodes</h2>
     <br />"""
@@ -762,6 +778,9 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />
     <br />"""
 
+  html_desicion_target_close = """
+    </div>"""
+
   html_adv_base = """
     <h2 class="jupyter-form__group-title">Advanced</h2>
     <br />"""
@@ -895,6 +914,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_master_type,
     html_master_disk_type,
     html_master_disk_size,
+    html_desicion_target,
     html_worker_base,
     html_worker_type,
     html_worker_disk_type,
@@ -904,6 +924,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_secondary_worker_disk_type,
     html_secondary_worker_disk_size,
     html_secondary_worker_amount,
+    html_desicion_target_close,
     html_adv_base,
     html_autoscaling_policy,
     html_pip_packages,
