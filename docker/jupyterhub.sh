@@ -48,10 +48,13 @@ EOT
 function append-to-jupyterhub-config {
   # Adding this to prevent the Hub container to crash loop.
   # Without the rm, the crash loop still happens.
-  pid=$(cat /jupyterhub-proxy.pid)
-  kill -9 "${pid}"
-  rm /jupyterhub-proxy.pid
-  echo "Just killed ${pid}."
+  proxy_file=/jupyterhub-proxy.pid
+  if test -f "$proxy_file"; then
+    pid=$(cat ${proxy_file})
+    kill -9 "${pid}"
+    rm ${proxy_file}
+    echo "Just killed ${pid}."
+  fi
 
   # Checks if runs on AI Notebook by reading a metadata passed as an environment variable.
   jupyterhub_host_type=$( curl ${metadata_base_url}/instance/attributes/jupyterhub-host-type -H "Metadata-Flavor: Google" )
