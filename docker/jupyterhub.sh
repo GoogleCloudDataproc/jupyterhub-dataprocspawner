@@ -21,9 +21,17 @@ readonly metadata_base_url="http://metadata.google.internal/computeMetadata/v1"
 # Adds content to jupyterhub_config.py so JupyterHub
 # can run on an AI Platform Notebook instance.
 function append-config-ain {
+  # Sentinel file to make configuration idempotent
+  if test -e .ain_jupyterhub_sentinel; then
+    echo "Jupyter already configured, skipping appending to config."
+    return
+  fi
+  touch .ain_jupyterhub_sentinel
+  mkdir -p '/home/jupyter/.jupyterhub'
   cat <<EOT >> jupyterhub_config.py
 ## Start of configuration for JupyterHub on AI Notebooks ##
 c.Spawner.spawner_host_type = 'ain'
+c.JupyterHub.db_url = 'sqlite:///home/jupyter/.jupyterhub/jupyterhub.sqlite'
 
 # Option on Dataproc Notebook server to allow authentication.
 c.Spawner.args = ['--NotebookApp.disable_check_xsrf=True']
