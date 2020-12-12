@@ -41,6 +41,16 @@ c.JupyterHub.log_level = 'DEBUG'
 EOT
 }
 
+function kill-proxy {
+  proxy_file=$1
+  if test -f "$proxy_file"; then
+    pid=$(cat "${proxy_file}")
+    kill -9 "${pid}"
+    rm "${proxy_file}"
+    echo "Just killed ${pid}."
+  fi
+}
+
 # 'append-to-jupyterhub-config'
 # Checks if JupyterHub is running on an AI Platform Notebook instance
 # and appends the proper configuration to jupyterhub_config.py.
@@ -48,13 +58,7 @@ EOT
 function append-to-jupyterhub-config {
   # Adding this to prevent the Hub container to crash loop.
   # Without the rm, the crash loop still happens.
-  proxy_file=/jupyterhub-proxy.pid
-  if test -f "$proxy_file"; then
-    pid=$(cat ${proxy_file})
-    kill -9 "${pid}"
-    rm ${proxy_file}
-    echo "Just killed ${pid}."
-  fi
+  kill-proxy /jupyterhub-proxy.pid
 
   # Checks if runs on AI Notebook by reading a metadata passed as an environment variable.
   jupyterhub_host_type=$( curl ${metadata_base_url}/instance/attributes/jupyterhub-host-type -H "Metadata-Flavor: Google" )
