@@ -3,6 +3,19 @@
   {% set announcement = announcement_spawn %}
 {% endif %}
 
+{% block stylesheet %}
+<link rel="stylesheet" href="{{ static_url("css/style.min.css") }}" type="text/css"/>
+<link rel="stylesheet" href="{{ static_url("mdc/index.css") }}" type="text/css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" />
+
+{% endblock %}
+
+{% block script %}
+<script src="{{static_url("mdc/index.js") }}" type="text/javascript" charset="utf-8"></script>
+
+{% endblock %}
+
 {% block main %}
 
 <div class="container-fluid">

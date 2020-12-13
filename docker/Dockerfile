@@ -52,7 +52,7 @@ RUN pip install --upgrade \
     google-auth \
     googleapis-common-protos \
     google-auth-httplib2 \
-    jupyterhub
+    jupyterhub==1.2.2
 
 RUN npm install -g configurable-http-proxy
 
