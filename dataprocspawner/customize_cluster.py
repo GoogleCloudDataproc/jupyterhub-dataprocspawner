@@ -245,53 +245,17 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       <br />
       <br />"""
 
-  html_pip_packages = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="pip_packages">
-            Install the following pip packages
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="pip_packages"
-        aria-labelledby="pip_packages"/>
-    </label>
-    <div class="mdc-text-field-helper-line">
-      <div class="mdc-text-field-helper-text" aria-hidden="true">
-        Example: 'pandas==0.23.0 scipy==1.1.0'
-      </div>
-    </div>
-    <br />"""
+  html_pip_packages = _render_text_field(
+    'pip_packages',
+    'Install the following pip packages',
+    'Example: \'pandas==0.23.0 scipy==1.1.0\''
+  )
 
-  html_conda_packages = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="conda_packages">
-            Install the following conda packages
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="conda_packages"
-        aria-labelledby="conda_packages"/>
-    </label>
-    <div class="mdc-text-field-helper-line">
-      <div class="mdc-text-field-helper-text" aria-hidden="true">
-        Example: 'scipy=1.1.0 tensorflow'
-      </div>
-    </div>
-    <br />"""
+  html_conda_packages = _render_text_field(
+    'conda_packages',
+    'Install the following conda packages',
+    'Example: \'scipy=1.1.0 tensorflow\''
+  )
 
   html_cluster_image = """
     <h2 class="jupyter-form__group-title">Versioning</h2>
@@ -505,26 +469,11 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />
     <br />"""
 
-  html_master_disk_size = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="master_disk_size">
-            Master disk size
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="master_disk_size"
-        aria-labelledby="master_disk_size"
-        value="500"/>
-    </label>
-    <br />
-    <br />"""
+  html_master_disk_size = _render_text_field(
+    id='master_disk_size',
+    label='Primary disk size',
+    value=500
+  )
 
   html_desicion_target = """
     <div id="select-decision-target">"""
@@ -640,47 +589,17 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />
     <br />"""
 
-  html_worker_disk_size = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="worker_disk_size">
-            Primary disk size
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="worker_disk_size"
-        aria-labelledby="worker_disk_size"
-        value="500"/>
-    </label>
-    <br />
-    <br />"""
+  html_worker_disk_size = _render_text_field(
+    id='worker_disk_size',
+    label='Primary disk size',
+    value=500
+  )
 
-  html_worker_amount = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="worker_node_amount">
-            Number of worker nodes
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="worker_node_amount"
-        aria-labelledby="worker_node_amount"
-        value="2"/>
-    </label>
-    <br />
-    <br />"""
+  html_worker_amount = _render_text_field(
+    id='worker_node_amount',
+    label='Number of worker nodes',
+    value=2
+  )
 
   html_secondary_worker_base = """
     <h2 class="jupyter-form__group-title">Secondary worker nodes</h2>
@@ -736,47 +655,16 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />
     <br />"""
 
-  html_secondary_worker_disk_size = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="sec_worker_disk_size">
-            Primary disk size
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="sec_worker_disk_size"
-        aria-labelledby="sec_worker_disk_size"
-        value="500"/>
-    </label>
-    <br />
-    <br />"""
+  html_secondary_worker_disk_size = _render_text_field(
+    id='sec_worker_disk_size',
+    label='Primary disk size',
+    value=500
+  )
 
-  html_secondary_worker_amount = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="sec_worker_node_amount">
-            Number of secondary worker nodes
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="sec_worker_node_amount"
-        aria-labelledby="sec_worker_node_amount"
-        value="0"/>
-    </label>
-    <br />
-    <br />"""
+  html_secondary_worker_amount = _render_text_field(
+    id='sec_worker_node_amount',
+    label='Number of secondary worker nodes'
+  )
 
   html_desicion_target_close = """
     </div>"""
@@ -785,128 +673,42 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <h2 class="jupyter-form__group-title">Advanced</h2>
     <br />"""
 
-  html_custom_labels = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="custom_labels">
-            User defined labels
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="custom_labels"
-        aria-labelledby="custom_labels"/>
-    </label>
-    <div class="mdc-text-field-helper-line">
-      <div class="mdc-text-field-helper-text" aria-hidden="true">
-        Example: 'key1:value1,key2:value2'
-      </div>
-    </div>
-    <br />"""
+  html_custom_labels = _render_text_field(
+    id='custom_labels',
+    label='User defined labels',
+    hint='Example: \'key1:value1,key2:value2\''
+  )
 
-  html_init_actions = """
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="init_actions">
-            Initialization actions
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="init_actions"
-        aria-labelledby="init_actions"/>
-    </label>
-    <div class="mdc-text-field-helper-line">
-      <div class="mdc-text-field-helper-text" aria-hidden="true">
-        Example: 'gs://init-action1,gs://init-action2'
-      </div>
-    </div>
-    <br />"""
+  html_init_actions = _render_text_field(
+    id='init_actions',
+    label='Initialization actions',
+    hint='Example: \'gs://init-action-1,gs://init-action-2\''
+  )
 
-  html_hive_settings = """
+  html_hive_settings_base = """
     <h2 class="jupyter-form__group-title">Hive settings</h2>
-    <br />
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="hive_host">
-            Hive metastore host
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="hive_host"
-        aria-labelledby="hive_host"/>
-    </label>
-    <br />
-    <br />
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="hive_db">
-            Hive metastore database
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="hive_db"
-        aria-labelledby="hive_db"/>
-    </label>
-    <br />
-    <br />
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="hive_user">
-            Hive metastore user name
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="hive_user"
-        aria-labelledby="hive_user"/>
-    </label>
-    <br />
-    <br />
-    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
-      <span class="mdc-notched-outline">
-        <span class="mdc-notched-outline__leading"></span>
-        <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="hive_passwd">
-            Hive metastore password
-          </span>
-        </span>
-        <span class="mdc-notched-outline__trailing"></span>
-      </span>
-      <input
-        type="text"
-        class="mdc-text-field__input"
-        name="hive_passwd"
-        aria-labelledby="hive_passwd"/>
-    </label>
     <br />"""
+
+  html_hive_host = _render_text_field(
+    id='hive_host',
+    label='Hive metastore host'
+  )
+
+  html_hive_database = _render_text_field(
+    id='hive_db',
+    label='Hive metastore database'
+  )
+
+  html_hive_username = _render_text_field(
+    id='hive_user',
+    label='Hive metastore user name'
+  )
+
+  html_hive_password = _render_text_field(
+    id='hive_passwd',
+    label='Hive metastore password'
+  )
+
 
   body = "\n".join([
     html_cluster_image,
@@ -931,7 +733,35 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     html_conda_packages,
     html_custom_labels,
     html_init_actions,
-    html_hive_settings
+    html_hive_settings_base,
+    html_hive_host,
+    html_hive_database,
+    html_hive_username,
+    html_hive_password
   ])
 
   return html_toggler + body + html_toggler_close
+
+def _render_text_field(id, label, hint='', value=''):
+  code = f"""
+    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
+      <span class="mdc-notched-outline">
+        <span class="mdc-notched-outline__leading"></span>
+        <span class="mdc-notched-outline__notch">
+          <span class="mdc-floating-label" id="{id}">
+            {label}
+          </span>
+        </span>
+        <span class="mdc-notched-outline__trailing"></span>
+      </span>
+      <input
+        type="text"
+        class="mdc-text-field__input"
+        name="{id}"
+        placeholder="{hint}"
+        value="{value}"/>
+    </label>
+    <br />
+    <br />"""
+
+  return code
