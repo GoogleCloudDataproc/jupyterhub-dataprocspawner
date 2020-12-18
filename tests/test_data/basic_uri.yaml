@@ -5,6 +5,7 @@ config:
   initializationActions:
   - executableFile: gs://dataproc-initialization-actions/python/pip-install.sh
   softwareConfig:
+    imageVersion: 1.4-debian9
     properties:
       dataproc:jupyter.hub.args: 'test-args-str-yaml'
       dataproc:jupyter.notebook.gcs.dir: ''

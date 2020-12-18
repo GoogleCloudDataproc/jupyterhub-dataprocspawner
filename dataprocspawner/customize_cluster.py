@@ -73,7 +73,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
 
   if configs:
     for config in configs:
-      name = ".".join(config.split("/")[-1].split(".")[:-1])
+      name = '.'.join(config.split('/')[-1].split('.')[:-1])
       html_config += f"""
         <li class="mdc-list-item" data-value="{config}">
           <span class="mdc-list-item__text">{name}</span>
@@ -129,7 +129,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
       <ul class="mdc-list">"""
 
   for zone_letter in locations_list:
-    location = f"{jhub_region}-{zone_letter}"
+    location = f'{jhub_region}-{zone_letter}'
     html_zone += f"""
       <li class="mdc-list-item" data-value="{location}">
         <span class="mdc-list-item__text">{location}</span>
@@ -141,7 +141,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
     \t</div>
     </section>"""
 
-  return html_config + "\n" + html_zone
+  return html_config + '\n' + html_zone
 
 
 def get_custom_cluster_html_form(autoscaling_policies, node_types):
@@ -176,7 +176,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
               value="" type="hidden"/>"""
 
   # Autoscaling policies configuration
-  html_autoscaling_policy = ""
+  html_autoscaling_policy = ''
   if autoscaling_policies:
     html_autoscaling_policy = """
       <div class="mdc-select jupyter-select mdc-select--outlined">
@@ -255,7 +255,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
       data-selected-value="custom">"""
 
   html_cluster_image += _render_radio_btn(
-    id='image-radio0',
+    input_id='image-radio0',
     name='image_version',
     label='None',
     value='',
@@ -263,28 +263,28 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
   )
 
   html_cluster_image += _render_radio_btn(
-    id='image-radio1',
+    input_id='image-radio1',
     name='image_version',
     label='PREVIEW 2.0',
     value='preview-debian10'
   )
 
   html_cluster_image += _render_radio_btn(
-    id='image-radio2',
+    input_id='image-radio2',
     name='image_version',
     label='1.5-debian10',
     value='1.5-debian10'
   )
 
   html_cluster_image += _render_radio_btn(
-    id='image-radio3',
+    input_id='image-radio3',
     name='image_version',
     label='1.4-debian10',
     value='1.4-debian10'
   )
 
   html_cluster_image += _render_radio_btn(
-    id='image-radio4',
+    input_id='image-radio4',
     name='image_version',
     label='Custom image',
     value='custom'
@@ -425,7 +425,7 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_master_disk_size = _render_text_field(
-    id='master_disk_size',
+    input_id='master_disk_size',
     label='Primary disk size',
     value=500
   )
@@ -545,13 +545,13 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_worker_disk_size = _render_text_field(
-    id='worker_disk_size',
+    input_id='worker_disk_size',
     label='Primary disk size',
     value=500
   )
 
   html_worker_amount = _render_text_field(
-    id='worker_node_amount',
+    input_id='worker_node_amount',
     label='Number of worker nodes',
     value=2
   )
@@ -611,13 +611,13 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_secondary_worker_disk_size = _render_text_field(
-    id='sec_worker_disk_size',
+    input_id='sec_worker_disk_size',
     label='Primary disk size',
     value=500
   )
 
   html_secondary_worker_amount = _render_text_field(
-    id='sec_worker_node_amount',
+    input_id='sec_worker_node_amount',
     label='Number of secondary worker nodes'
   )
 
@@ -629,13 +629,13 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_custom_labels = _render_text_field(
-    id='custom_labels',
+    input_id='custom_labels',
     label='User defined labels',
     hint='Example: \'key1:value1,key2:value2\''
   )
 
   html_init_actions = _render_text_field(
-    id='init_actions',
+    input_id='init_actions',
     label='Initialization actions',
     hint='Example: \'gs://init-action-1,gs://init-action-2\''
   )
@@ -645,26 +645,26 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <br />"""
 
   html_hive_host = _render_text_field(
-    id='hive_host',
+    input_id='hive_host',
     label='Hive metastore host'
   )
 
   html_hive_database = _render_text_field(
-    id='hive_db',
+    input_id='hive_db',
     label='Hive metastore database'
   )
 
   html_hive_username = _render_text_field(
-    id='hive_user',
+    input_id='hive_user',
     label='Hive metastore user name'
   )
 
   html_hive_password = _render_text_field(
-    id='hive_passwd',
+    input_id='hive_passwd',
     label='Hive metastore password'
   )
 
-  body = "\n".join([
+  body = '\n'.join([
     html_cluster_image,
     html_master_base,
     html_master_type,
@@ -696,13 +696,13 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
 
   return html_toggler + body + html_toggler_close
 
-def _render_text_field(id, label, hint='', value=''):
+def _render_text_field(input_id, label, hint='', value=''):
   code = f"""
     <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined">
       <span class="mdc-notched-outline">
         <span class="mdc-notched-outline__leading"></span>
         <span class="mdc-notched-outline__notch">
-          <span class="mdc-floating-label" id="{id}">
+          <span class="mdc-floating-label" id="{input_id}">
             {label}
           </span>
         </span>
@@ -720,14 +720,14 @@ def _render_text_field(id, label, hint='', value=''):
 
   return code
 
-def _render_radio_btn(id, label, name, value, checked=''):
+def _render_radio_btn(input_id, label, name, value, checked=''):
   code = f"""
     <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
       <div class="mdc-radio">
         <input
           class="mdc-radio__native-control"
           type="radio"
-          id="{id}"
+          id="{input_id}"
           name="{name}"
           value="{value}"
           {checked}/>

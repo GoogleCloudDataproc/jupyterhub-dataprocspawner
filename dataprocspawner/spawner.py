@@ -1443,6 +1443,7 @@ class DataprocSpawner(Spawner):
     # Overwrites some existing data with required values.
     cluster_data['config'].setdefault('software_config', {})
     cluster_data['config']['software_config'].setdefault('properties', {})
+    cluster_data['config'].setdefault('master_config', {})
 
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.args']) = self.args_str
