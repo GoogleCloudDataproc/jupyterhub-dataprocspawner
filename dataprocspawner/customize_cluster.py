@@ -30,12 +30,12 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
     <section class="form-section">
       <br />
       <div class="mdc-select mdc-select-decision jupyter-select mdc-select--outlined"
-        data-decision-value="gs://dataproc-spawner-dist/example-configs/single-node-cluster.yaml"
+        data-decision-value="gs://dataproc-spawner-dist/example-configs/example-single-node.yaml"
         data-decision-target="#select-decision-target">
           <input
             type="hidden"
             name="cluster_type"
-            value="gs://dataproc-spawner-dist/example-configs/standard-cluster.yaml"/>
+            value="{configs[0]}"/>
           <div class="mdc-select__anchor">
             <span class="mdc-select__selected-text"></span>
             <span class="mdc-select__dropdown-icon">
@@ -69,19 +69,9 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
             </span>
           </div>
           <div class="mdc-select__menu mdc-menu mdc-menu-surface">
-            <ul class="mdc-list">
-              <li class="mdc-list-item"
-                data-value="gs://dataproc-spawner-dist/example-configs/standard-cluster.yaml">
-                  <span class="mdc-list-item__text">Standard (predefined)</span>
-              </li>
-              <li class="mdc-list-item"
-                data-value="gs://dataproc-spawner-dist/example-configs/single-node-cluster.yaml">
-                  <span class="mdc-list-item__text">Single Node (predefined)</span>
-              </li>"""
+            <ul class="mdc-list">"""
 
   if configs:
-    html_config += f"""
-      <li class="mdc-list-divider" role="separator"></li>"""
     for config in configs:
       name = ".".join(config.split("/")[-1].split(".")[:-1])
       html_config += f"""
@@ -262,99 +252,64 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     <div
       class="mdc-radio-decision-group"
       data-name="image_version"
-      data-selected-value="custom">
-        <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
-          <div class="mdc-radio">
-            <input
-              class="mdc-radio__native-control"
-              type="radio"
-              id="image-radio1"
-              name="image_version"
-              value="preview-debian10"/>
-            <div class="mdc-radio__background">
-              <div class="mdc-radio__outer-circle"></div>
-              <div class="mdc-radio__inner-circle"></div>
-            </div>
-            <div class="mdc-radio__ripple"></div>
-          </div>
-          <label for="image-radio1">PREVIEW 2.0</label>
-        </div>
-        <br />
-        <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
-          <div class="mdc-radio">
-            <input
-              class="mdc-radio__native-control"
-              type="radio"
-              id="image-radio2"
-              name="image_version"
-              value="1.5-debian10"
-              checked/>
-            <div class="mdc-radio__background">
-              <div class="mdc-radio__outer-circle"></div>
-              <div class="mdc-radio__inner-circle"></div>
-            </div>
-            <div class="mdc-radio__ripple"></div>
-          </div>
-          <label for="image-radio2">1.5-debian10</label>
-        </div>
-        <br />
-        <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
-          <div class="mdc-radio">
-            <input
-              class="mdc-radio__native-control"
-              type="radio"
-              id="image-radio3"
-              name="image_version"
-              value="1.4-debian10"/>
-            <div class="mdc-radio__background">
-              <div class="mdc-radio__outer-circle"></div>
-              <div class="mdc-radio__inner-circle"></div>
-            </div>
-            <div class="mdc-radio__ripple"></div>
-          </div>
-          <label for="image-radio3">1.4-debian10</label>
-        </div>
-        <br />
-        <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
-          <div class="mdc-radio">
-            <input
-              class="mdc-radio__native-control"
-              type="radio"
-              id="image-radio4"
-              name="image_version"
-              value="custom"/>
-            <div class="mdc-radio__background">
-              <div class="mdc-radio__outer-circle"></div>
-              <div class="mdc-radio__inner-circle"></div>
-            </div>
-            <div class="mdc-radio__ripple"></div>
-          </div>
-          <label for="image-radio4">Custom image</label>
-        </div>
-        <br />
-        <br />
-        <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined
-          mdc-radio-decision-group-target">
-            <span class="mdc-notched-outline">
-              <span class="mdc-notched-outline__leading"></span>
-              <span class="mdc-notched-outline__notch">
-                <span class="mdc-floating-label">
-                  Custom image
-                </span>
-              </span>
-              <span class="mdc-notched-outline__trailing"></span>
+      data-selected-value="custom">"""
+
+  html_cluster_image += _render_radio_btn(
+    id='image-radio0',
+    name='image_version',
+    label='None',
+    value='',
+    checked='checked'
+  )
+
+  html_cluster_image += _render_radio_btn(
+    id='image-radio1',
+    name='image_version',
+    label='PREVIEW 2.0',
+    value='preview-debian10'
+  )
+
+  html_cluster_image += _render_radio_btn(
+    id='image-radio2',
+    name='image_version',
+    label='1.5-debian10',
+    value='1.5-debian10'
+  )
+
+  html_cluster_image += _render_radio_btn(
+    id='image-radio3',
+    name='image_version',
+    label='1.4-debian10',
+    value='1.4-debian10'
+  )
+
+  html_cluster_image += _render_radio_btn(
+    id='image-radio4',
+    name='image_version',
+    label='Custom image',
+    value='custom'
+  )
+
+  html_cluster_image += """
+    <br />
+    <label class="mdc-text-field jupyter-text-field mdc-text-field--outlined
+      mdc-radio-decision-group-target">
+        <span class="mdc-notched-outline">
+          <span class="mdc-notched-outline__leading"></span>
+          <span class="mdc-notched-outline__notch">
+            <span class="mdc-floating-label">
+              Custom image
             </span>
-            <input
-              type="text"
-              class="mdc-text-field__input"
-              name="custom_image"
-              id="custom_image"/>
-        </label>
-        <div class="mdc-text-field-helper-line">
-          <div class="mdc-text-field-helper-text" aria-hidden="true">
-            Example: 'projects/project-id/global/images/image-id'
-          </div>
-        </div>
+          </span>
+          <span class="mdc-notched-outline__trailing"></span>
+        </span>
+        <input
+          type="text"
+          class="mdc-text-field__input"
+          name="custom_image"
+          id="custom_image"
+          placeholder="Example: 'projects/project-id/global/images/image-id'"/>
+    </label>
     </div>
     <br />"""
 
@@ -709,7 +664,6 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
     label='Hive metastore password'
   )
 
-
   body = "\n".join([
     html_cluster_image,
     html_master_base,
@@ -762,6 +716,29 @@ def _render_text_field(id, label, hint='', value=''):
         value="{value}"/>
     </label>
     <br />
+    <br />"""
+
+  return code
+
+def _render_radio_btn(id, label, name, value, checked=''):
+  code = f"""
+    <div class="mdc-form-field mdc-form-field-full mdc-form-field-radio">
+      <div class="mdc-radio">
+        <input
+          class="mdc-radio__native-control"
+          type="radio"
+          id="{id}"
+          name="{name}"
+          value="{value}"
+          {checked}/>
+        <div class="mdc-radio__background">
+          <div class="mdc-radio__outer-circle"></div>
+          <div class="mdc-radio__inner-circle"></div>
+        </div>
+        <div class="mdc-radio__ripple"></div>
+      </div>
+      <label for="image-radio1">{label}</label>
+    </div>
     <br />"""
 
   return code
