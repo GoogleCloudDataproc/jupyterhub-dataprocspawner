@@ -559,7 +559,7 @@ class TestDataprocSpawner:
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     monkeypatch.setattr(spawner, "clustername", test_clustername)
 
-    spawner.show_spawned_clusters_in_notebooks_ui = False
+    spawner.show_spawned_clusters_in_notebooks_list = False
     spawner.region = "us-east1"
     spawner.zone = "us-east1-d"
     spawner.env_str = "test-env-str"
