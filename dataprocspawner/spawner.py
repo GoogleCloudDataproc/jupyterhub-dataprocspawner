@@ -642,17 +642,17 @@ class DataprocSpawner(Spawner):
       string.
     """
     config_paths = []
-
-    for path in gcs_paths.split(sep):
-      path = self._clean_gcs_path(path, return_gs=False)
-      gcs_bucket = path.split('/')[0]
-      gcs_prefix = '/'.join(path.split('/')[1:])
-      try:
-        config_paths += [
-            f'{gcs_bucket}/{b.name}' for b in
-            self.gcs_client.list_blobs(gcs_bucket, prefix=gcs_prefix)]
-      except exceptions.NotFound:
-        pass
+    if gcs_paths:
+      for path in gcs_paths.split(sep):
+        path = self._clean_gcs_path(path, return_gs=False)
+        gcs_bucket = path.split('/')[0]
+        gcs_prefix = '/'.join(path.split('/')[1:])
+        try:
+          config_paths += [
+              f'{gcs_bucket}/{b.name}' for b in
+              self.gcs_client.list_blobs(gcs_bucket, prefix=gcs_prefix)]
+        except exceptions.NotFound:
+          pass
 
     config_paths = list(set(config_paths))
     return config_paths if config_paths else ''
@@ -1135,7 +1135,7 @@ class DataprocSpawner(Spawner):
 
     return [z for z in zones.split(',') if z in region_zone_letters] or region_zone_letters
 
-  def _get_custom_image_version(self, custom_image):
+  def _get_image_version(self, custom_image):
     project = custom_image.split('/')[1]
     image = custom_image.split('/')[4]
     goog_version = ''
@@ -1218,14 +1218,32 @@ class DataprocSpawner(Spawner):
             }
           )
 
+    if self.user_options.get('cluster_props_prefix_0'):
+      props = {key: val for key, val in self.user_options.items() if 'cluster_props' in key}
+      try:
+        if len(props.keys()) % 3 == 0:
+          for i in range(int(len(props.keys()) / 3)):
+            prefix = props[f'cluster_props_prefix_{i}']
+            key = props[f'cluster_props_key_{i}']
+            value = props[f'cluster_props_val_{i}']
+            config['software_config']['properties'][f'{prefix}:{key}'] = value
+      except Exception as e: ## pylint: disable=broad-except
+        self.log.info(f'Failed to process Dataproc cluster properties:\n\t{e}')
+
     if self.user_options.get('image_version'):
       if self.user_options.get('custom_image'):
         config['master_config']['image_uri'] = self.user_options.get('custom_image')
         config['worker_config']['image_uri'] = self.user_options.get('custom_image')
         config['software_config']['image_version'] = \
-          self._get_custom_image_version(self.user_options.get('custom_image'))
+          self._get_image_version(self.user_options.get('custom_image'))
       else:
+        config['master_config'].pop('image_uri', None)
+        config['worker_config'].pop('image_uri', None)
         config['software_config']['image_version'] = self.user_options.get('image_version')
+    # else:
+    #   if 'image_uri' in config['master_config']:
+    #     config['software_config']['image_version'] = \
+    #       self._get_image_version(config['master_config']['image_uri'])
 
     if self.user_options.get('master_node_type'):
       config['master_config']['machine_type_uri'] = self.user_options.get('master_node_type')
@@ -1424,6 +1442,7 @@ class DataprocSpawner(Spawner):
     # Overwrites some existing data with required values.
     cluster_data['config'].setdefault('software_config', {})
     cluster_data['config']['software_config'].setdefault('properties', {})
+    cluster_data['config'].setdefault('master_config', {})
 
     (cluster_data['config']['software_config']['properties']
                  ['dataproc:jupyter.hub.args']) = self.args_str
@@ -1442,7 +1461,11 @@ class DataprocSpawner(Spawner):
        ['dataproc:jupyter.notebook.gcs.dir']) = self.gcs_user_folder
 
     if 'image_version' not in cluster_data['config']['software_config']:
-      cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
+      if 'image_uri' in cluster_data['config']['master_config']:
+        cluster_data['config']['software_config']['image_version'] = \
+          self._get_image_version(cluster_data['config']['master_config']['image_uri'])
+      else:
+        cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
