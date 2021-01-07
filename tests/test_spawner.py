@@ -1115,3 +1115,81 @@ class TestDataprocSpawner:
 
     await spawner.start()
     assert await collect(spawner._generate_progress()) == yields_existing
+
+  def test_user_options_image_version(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/minimum.yaml', 'r').read()
+      return config_string
+
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.allow_custom_clusters = True
+    spawner.user_options = {
+      'cluster_type': 'minimum.yaml',
+      'cluster_zone': 'test-form1-a',
+      'custom_cluster': '1',
+      'image_version': '1.5-debian10'
+    }
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['software_config']['image_version'] == '1.5-debian10'
+
+  def test_user_options_custom_image(self, monkeypatch):
+    import yaml
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/basic.yaml', 'r').read()
+      return config_string
+
+    def test_image_version(*args, **kwargs):
+      image_version = '1.5-debian10'
+      return image_version
+
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
+    # Prevents a call to GCS. We return the local file instead.
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+
+    spawner.region = "us-east1"
+    spawner.zone = "us-east1-d"
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    spawner.allow_custom_clusters = True
+    spawner.user_options = {
+      'cluster_type': 'basic.yaml',
+      'cluster_zone': 'test-form1-a',
+      'custom_cluster': '1',
+      'image_version': 'custom',
+      'custom_image': 'projects/test-project/global/images/custom-image'
+    }
+
+    monkeypatch.setattr(spawner, '_get_image_version', test_image_version)
+
+    config_built = spawner._build_cluster_config()
+
+    assert config_built['config']['software_config']['image_version'] == '1.5-debian10'
+    assert config_built['config']['master_config']['image_uri'] == 'projects/test-project/global/images/custom-image'
