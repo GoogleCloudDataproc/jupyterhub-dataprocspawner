@@ -1240,10 +1240,6 @@ class DataprocSpawner(Spawner):
         config['master_config'].pop('image_uri', None)
         config['worker_config'].pop('image_uri', None)
         config['software_config']['image_version'] = self.user_options.get('image_version')
-    # else:
-    #   if 'image_uri' in config['master_config']:
-    #     config['software_config']['image_version'] = \
-    #       self._get_image_version(config['master_config']['image_uri'])
 
     if self.user_options.get('master_node_type'):
       config['master_config']['machine_type_uri'] = self.user_options.get('master_node_type')
