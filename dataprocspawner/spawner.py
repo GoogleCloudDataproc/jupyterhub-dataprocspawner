@@ -333,6 +333,13 @@ class DataprocSpawner(Spawner):
       Whether to show spawned single-user clusters in the list of Dataproc Notebooks.
       """)
 
+  force_single_user = Bool(
+    False,
+    config=True,
+    help="""Whether a notebook on a cluster can only be accessed by the user who
+    spawned it.
+    """)
+
   def __init__(self, *args, **kwargs):
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
@@ -1370,6 +1377,12 @@ class DataprocSpawner(Spawner):
       cluster_data['config'].setdefault('initialization_actions', [])
       cluster_data['config'].setdefault('software_config', {})
       cluster_data['config']['software_config'].setdefault('properties', {})
+
+      # Priority goes: 1.[End user property] overwrites 2.[force_single_user]
+      # overwrites 3.[YAML template property]
+      if self.force_single_user:
+        (cluster_data['config']['software_config']['properties']
+                     ['dataproc:dataproc.alpha.unified-auth.user']) = self.user.name
 
       if 'metadata' in cluster_data['config']['gce_cluster_config']:
         metadata = cluster_data['config']['gce_cluster_config']['metadata']
