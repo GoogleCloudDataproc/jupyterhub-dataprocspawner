@@ -1223,5 +1223,5 @@ class TestDataprocSpawner:
     print(config_built)
 
     assert (config_built['config']['software_config']['properties']
-        ['dataproc:dataproc.alpha.unified-auth.user']) == MockUser.name
+        ['dataproc:dataproc.personal-auth.user']) == MockUser.name
 
