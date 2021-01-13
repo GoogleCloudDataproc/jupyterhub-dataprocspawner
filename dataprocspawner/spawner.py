@@ -1475,7 +1475,7 @@ class DataprocSpawner(Spawner):
     unified_auth_key = 'dataproc:dataproc.alpha.unified-auth.user'
     if (unified_auth_key not in cluster_data['config']['software_config']['properties']
         and self.force_single_user):
-          (cluster_data['config']['software_config']['properties']
+      (cluster_data['config']['software_config']['properties']
                        [unified_auth_key]) = self.user.name
 
     # Forces Component Gateway
