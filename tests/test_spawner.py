@@ -1197,31 +1197,31 @@ class TestDataprocSpawner:
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
-    # Mock the Compute Engine API client
     mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
                                                credentials=fake_creds, cache_discovery=False))
     spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
                               user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
                               compute=mock_compute_client, project='test-project')
 
-    # Prevents a call to GCS. We return the local file instead.
-    def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/basic.yaml', 'r').read()
-      return config_string
-
-    def test_clustername(*args, **kwargs):
-      return 'test-clustername'
-
-    monkeypatch.setattr(spawner, "clustername", test_clustername)
-
     spawner.force_single_user = True
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
-
     config_built = spawner._build_cluster_config()
-
-    print(config_built)
-
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == MockUser.name
+
+  def test_unified_auth_remove(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
+
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    config_built = spawner._build_cluster_config()
+    assert 'dataproc:dataproc.personal-auth.user' not in config_built['config']['software_config']['properties']
 

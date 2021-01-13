@@ -1350,6 +1350,7 @@ class DataprocSpawner(Spawner):
     # but must be set in case there is no form.
     cluster_data = cluster_data or {}
     cluster_zone = self.zone
+    prop_perso = 'dataproc:dataproc.personal-auth.user'
 
     # Sets the cluster definition with form data.
     if self.user_options:
@@ -1377,6 +1378,9 @@ class DataprocSpawner(Spawner):
       cluster_data['config'].setdefault('initialization_actions', [])
       cluster_data['config'].setdefault('software_config', {})
       cluster_data['config']['software_config'].setdefault('properties', {})
+
+      # If yaml exported from personal clusters, removes the personal auth info.
+      cluster_data['config']['software_config']['properties'].pop(prop_perso, None)
 
       if 'metadata' in cluster_data['config']['gce_cluster_config']:
         metadata = cluster_data['config']['gce_cluster_config']['metadata']
@@ -1470,11 +1474,9 @@ class DataprocSpawner(Spawner):
       else:
         cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
-    # Priority goes: 1.[force_single_user] overwrites 2.[End user property]
-    # overwrites 3.[YAML template property].
+    # Priority goes: 1.[force_single_user] 2.[End user property] 3. [No yaml prop]
     if self.force_single_user:
-      (cluster_data['config']['software_config']['properties']
-                   ['dataproc:dataproc.personal-auth.user']) = self.user.name
+      cluster_data['config']['software_config']['properties'][prop_perso] = self.user.name
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
