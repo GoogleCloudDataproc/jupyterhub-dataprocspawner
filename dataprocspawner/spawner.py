@@ -1470,13 +1470,11 @@ class DataprocSpawner(Spawner):
       else:
         cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
-    # Priority goes: 1.[End user property] overwrites 2.[force_single_user]
-    # overwrites 3.[YAML template property]
-    unified_auth_key = 'dataproc:dataproc.alpha.unified-auth.user'
-    if (unified_auth_key not in cluster_data['config']['software_config']['properties']
-        and self.force_single_user):
+    # Priority goes: 1.[force_single_user] overwrites 2.[End user property]
+    # overwrites 3.[YAML template property].
+    if self.force_single_user:
       (cluster_data['config']['software_config']['properties']
-                       [unified_auth_key]) = self.user.name
+                   ['dataproc:dataproc.alpha.unified-auth.user']) = self.user.name
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
