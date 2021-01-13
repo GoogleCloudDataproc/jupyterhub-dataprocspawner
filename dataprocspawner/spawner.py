@@ -1308,7 +1308,7 @@ class DataprocSpawner(Spawner):
         int(self.user_options.get('sec_worker_node_amount'))
 
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
-    if autoscaling_policy != 'None':
+    if autoscaling_policy and autoscaling_policy != 'None':
       cluster_data['config']['autoscaling_config'] = {
           'policy_uri': (
               f"""https://www.googleapis.com/compute/v1/projects/"""
@@ -1474,7 +1474,7 @@ class DataprocSpawner(Spawner):
     # overwrites 3.[YAML template property].
     if self.force_single_user:
       (cluster_data['config']['software_config']['properties']
-                   ['dataproc:dataproc.alpha.unified-auth.user']) = self.user.name
+                   ['dataproc:dataproc.personal-auth.user']) = self.user.name
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
