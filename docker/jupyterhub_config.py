@@ -67,6 +67,7 @@ c.DataprocSpawner.cluster_name_pattern = os.environ.get('CLUSTER_NAME_PATTERN', 
 c.DataprocSpawner.allow_custom_clusters = is_true(os.environ.get('DATAPROC_ALLOW_CUSTOM_CLUSTERS', ''))
 c.DataprocSpawner.allow_random_cluster_names = is_true(os.environ.get('ALLOW_RANDOM_CLUSTER_NAMES', ''))
 c.DataprocSpawner.show_spawned_clusters_in_notebooks_list = is_true(os.environ.get('SHOW_SPAWNED_CLUSTERS', ''))
+c.DataprocSpawner.force_single_user = is_true(os.environ.get('FORCE_SINGLE_USER', ''))
 c.DataprocSpawner.gcs_notebooks = os.environ.get('GCS_NOTEBOOKS', '')
 if not c.DataprocSpawner.gcs_notebooks:
   c.DataprocSpawner.gcs_notebooks = os.environ.get('NOTEBOOKS_LOCATION', '')

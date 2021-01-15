@@ -1,0 +1,5 @@
+clusterName: 'personal'
+config:
+  softwareConfig:
+    properties:
+      dataproc:dataproc.personal-auth.user: 'user@example.com'

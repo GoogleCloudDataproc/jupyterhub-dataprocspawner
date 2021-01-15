@@ -333,6 +333,13 @@ class DataprocSpawner(Spawner):
       Whether to show spawned single-user clusters in the list of Dataproc Notebooks.
       """)
 
+  force_single_user = Bool(
+    False,
+    config=True,
+    help="""Whether a notebook on a cluster can only be accessed by the user who
+    spawned it.
+    """)
+
   def __init__(self, *args, **kwargs):
     mock = kwargs.pop('_mock', False)
     super().__init__(*args, **kwargs)
@@ -950,7 +957,8 @@ class DataprocSpawner(Spawner):
 ################################################################################
 
   def get_username(self, raw=False):
-    return self.user.name if raw else re.sub(r'[^a-zA-Z0-9=]', '-', str(self.user.name))
+    username, _ = (self.user.name.split('@') + [None])[:2]
+    return username if raw else re.sub(r'[^a-zA-Z0-9=]', '-', str(username))
 
   def clustername(self, cluster_name=None):
     """ JupyterHub provides a notebook per user, so the username is used to
@@ -1301,7 +1309,7 @@ class DataprocSpawner(Spawner):
         int(self.user_options.get('sec_worker_node_amount'))
 
     autoscaling_policy = self.user_options.get('autoscaling_policy', '')
-    if autoscaling_policy != 'None':
+    if autoscaling_policy and autoscaling_policy != 'None':
       cluster_data['config']['autoscaling_config'] = {
           'policy_uri': (
               f"""https://www.googleapis.com/compute/v1/projects/"""
@@ -1343,6 +1351,7 @@ class DataprocSpawner(Spawner):
     # but must be set in case there is no form.
     cluster_data = cluster_data or {}
     cluster_zone = self.zone
+    personal_auth_property = 'dataproc:dataproc.personal-auth.user'
 
     # Sets the cluster definition with form data.
     if self.user_options:
@@ -1462,6 +1471,15 @@ class DataprocSpawner(Spawner):
           self._get_image_version(cluster_data['config']['master_config']['image_uri'])
       else:
         cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
+
+    # A user can only set 'dataproc:dataproc.personal-auth.user' for themselves.
+    # Otherwise the CG Url is not accessible by either identities. So, if set,
+    # the personal auth property can only have the value of self.user.name. For
+    # that reason, there is no priority between yaml and user.
+    if (self.force_single_user or
+        personal_auth_property in cluster_data['config']['software_config']['properties']):
+      (cluster_data['config']['software_config']['properties']
+                   [personal_auth_property]) = self.user.name
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
