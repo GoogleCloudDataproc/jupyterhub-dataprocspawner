@@ -13,19 +13,18 @@
 # limitations under the License.
 """ Extends default objects.Server to modify server healthiness checks."""
 
+import asyncio
 import errno
 import socket
-import asyncio
 
 from google.api_core import exceptions
 from google.cloud.dataproc_v1beta2 import ClusterStatus
-
 from jupyterhub.objects import Server
 from jupyterhub.utils import exponential_backoff
-
 from tornado import ioloop
-from tornado.httpclient import HTTPError, AsyncHTTPClient
+from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
 from tornado.log import app_log
+
 
 class DataprocHubServer(Server):
   """ Extends the server class to wait up based on cluster status.
@@ -77,7 +76,6 @@ class DataprocHubServer(Server):
     """ Waits for a status of RUNNING """
     loop = ioloop.IOLoop.current()
     tic = loop.time() # pylint: disable=unused-variable
-    client = AsyncHTTPClient()
 
     async def is_reachable():
       """ Checks if notebooks is ready to be used.
@@ -105,7 +103,7 @@ class DataprocHubServer(Server):
           return False
 
         app_log.info('Returns r_success %s with url %s', status, self.url)
-        r_success = await client.fetch(self.url, follow_redirects=True)
+        r_success = HTTPResponse(HTTPRequest(self.url, 'GET'), 200)
         return r_success
 
       except (exceptions.NotFound, exceptions.PermissionDenied) as e:
