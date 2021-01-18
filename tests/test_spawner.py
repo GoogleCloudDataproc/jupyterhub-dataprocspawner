@@ -1191,7 +1191,10 @@ class TestDataprocSpawner:
     assert config_built['config']['software_config']['image_version'] == '1.5-debian10'
     assert config_built['config']['master_config']['image_uri'] == 'projects/test-project/global/images/custom-image'
 
-  def test_unified_auth_flag(self, monkeypatch):
+  ##
+  # Tests for personal auth
+  ##
+  def test_personal_auth_flag(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1208,7 +1211,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_unified_auth_yaml(self, monkeypatch):
+  def test_personal_auth_yaml(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1235,7 +1238,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_unified_auth_user(self, monkeypatch):
+  def test_personal_auth_user(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1263,4 +1266,46 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+
+  def test_personal_auth_chechbox_on(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
+
+    def test_read_file(*args, **kwargs):
+      config_string = open('./tests/test_data/perso.yaml', 'r').read()
+      return config_string
+
+    monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
+    spawner.user_options = {
+      'cluster_type': 'minimum.yaml',
+      'cluster_zone': 'us-central-1',
+      'personal_auth': 'on'
+    }
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    config_built = spawner._build_cluster_config()
+    assert (config_built['config']['software_config']['properties']
+        ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+
+  def test_personal_auth_chechbox_off(self, monkeypatch):
+    fake_creds = AnonymousCredentials()
+    mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_dataproc_client, gcs=mock_gcs_client,
+                              user=MockUser(), _mock=True, gcs_notebooks=self.gcs_notebooks,
+                              compute=mock_compute_client, project='test-project')
+
+    spawner.env_str = "test-env-str"
+    spawner.args_str = "test-args-str"
+    config_built = spawner._build_cluster_config()
+    assert 'dataproc:dataproc.personal-auth.user' not in config_built['config']['software_config']['properties']
+
 
