@@ -104,7 +104,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
         </div>
         <div class="mdc-checkbox__ripple"></div>
       </div>
-      <label for="personal-auth">Make notebook private.</label>
+      <label for="personal-auth">Make the notebook personal.</label>
     </div>
   """
 
