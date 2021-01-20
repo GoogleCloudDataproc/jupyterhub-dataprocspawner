@@ -105,6 +105,7 @@ function set-environment-from-metadata {
   local notebooks_examples_location
   local hub_allow_named_servers
   local force_single_user
+  local allow_random_cluster_names
 
   notebooks_location=$( curl -s -f \
     ${metadata_base_url}/instance/attributes/notebooks-location -H "Metadata-Flavor: Google" || echo )
@@ -126,6 +127,8 @@ function set-environment-from-metadata {
     ${metadata_base_url}/instance/attributes/hub-allow-named-servers -H "Metadata-Flavor: Google" || echo )
   force_single_user=$( curl -s -f \
     ${metadata_base_url}/instance/attributes/force-single-user -H "Metadata-Flavor: Google" || echo )
+  allow_random_cluster_names=$( curl -s -f \
+    ${metadata_base_url}/instance/attributes/allow-random-cluster-names -H "Metadata-Flavor: Google" || echo )
 
   if [ -n "${notebooks_location}" ]; then
     export NOTEBOOKS_LOCATION="${notebooks_location}"
@@ -156,6 +159,9 @@ function set-environment-from-metadata {
   fi
   if [ -n "${force_single_user}" ]; then
     export FORCE_SINGLE_USER="${force_single_user}"
+  fi
+  if [ -n "${allow_random_cluster_names}" ]; then
+    export ALLOW_RANDOM_CLUSTER_NAMES="${allow_random_cluster_names}"
   fi
 
 }

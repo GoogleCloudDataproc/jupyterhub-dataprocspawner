@@ -124,38 +124,37 @@ def get_custom_cluster_html_form(autoscaling_policies, node_types):
               value="" type="hidden"/>"""
 
   # Autoscaling policies configuration
-  html_autoscaling_policy = ''
+  html_autoscaling_policy = """
+    <div class="mdc-select jupyter-select mdc-select--outlined">
+      <input
+        type="hidden"
+        name="autoscaling_policy"
+        value="None"/>"""
+
+  html_autoscaling_policy += _render_select_menu_part(
+    label='Autoscaling policies'
+  )
+
+  html_autoscaling_policy += """
+    <div class="mdc-select__menu mdc-menu mdc-menu-surface">
+      <ul class="mdc-list">
+        <li class="mdc-list-item" data-value="None">
+          <span class="mdc-list-item__text">None</span>
+        </li>"""
+
   if autoscaling_policies:
-    html_autoscaling_policy = """
-      <div class="mdc-select jupyter-select mdc-select--outlined">
-        <input
-          type="hidden"
-          name="autoscaling_policy"
-          value="None"/>"""
-
-    html_autoscaling_policy += _render_select_menu_part(
-      label='Autoscaling policies'
-    )
-
-    html_autoscaling_policy += """
-      <div class="mdc-select__menu mdc-menu mdc-menu-surface">
-        <ul class="mdc-list">
-          <li class="mdc-list-item" data-value="None">
-            <span class="mdc-list-item__text">None</span>
-          </li>"""
-
     for policy in autoscaling_policies:
       html_autoscaling_policy += f"""
         <li class="mdc-list-item" data-value="{policy}">
           <span class="mdc-list-item__text">{policy}</span>
         </li>"""
 
-    html_autoscaling_policy += """
-      \t\t</ul>
-      \t</div>
-      </div>
-      <br />
-      <br />"""
+  html_autoscaling_policy += """
+    \t\t</ul>
+    \t</div>
+    </div>
+    <br />
+    <br />"""
 
   html_pip_packages = _render_text_field(
     input_id='pip_packages',
