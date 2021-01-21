@@ -186,7 +186,7 @@ class TestDataprocSpawner:
     url = await spawner.start()
     mock_client.create_cluster.assert_called_once()
 
-    cn_target = fr'dataprochub-{spawner.get_username()}-server1-[a-z]{{4}}'
+    cn_target = fr'dataprochub-{spawner.get_username()}-server1-[a-z0-6]{{4}}'
     cn = spawner.cluster_definition['cluster_name']
     assert re.match(cn_target, cn)
 
@@ -1230,7 +1230,7 @@ class TestDataprocSpawner:
     assert config_built['config']['software_config']['image_version'] == '1.5-debian10'
     assert config_built['config']['master_config']['image_uri'] == 'projects/test-project/global/images/custom-image'
 
-  def test_personal_auth_flag(self, monkeypatch):
+  def test_unified_auth_flag(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1247,7 +1247,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_personal_auth_yaml(self, monkeypatch):
+  def test_unified_auth_yaml(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1274,7 +1274,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_personal_auth_user(self, monkeypatch):
+  def test_unified_auth_user(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
