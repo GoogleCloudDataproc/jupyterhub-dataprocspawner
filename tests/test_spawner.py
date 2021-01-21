@@ -531,7 +531,7 @@ class TestDataprocSpawner:
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.env'] == 'test-env-str'
     assert config_built['config']['software_config']['properties']['dataproc:jupyter.hub.menu.enabled'] == 'true'
     assert 'dataproc:jupyter.hub.enabled' not in config_built['config']['software_config']['properties']
-    assert 'dataproc:dataproc.personal-auth.user' not in config_built['config']['software_config']['properties']
+    assert 'dataproc:dataproc.exclusive.user' not in config_built['config']['software_config']['properties']
 
   def test_cluster_definition_overrides(self, monkeypatch):
     """Check that config settings incompatible with JupyterHub are overwritten correctly."""
@@ -1206,7 +1206,7 @@ class TestDataprocSpawner:
     spawner.args_str = "test-args-str"
     config_built = spawner._build_cluster_config()
     assert (config_built['config']['software_config']['properties']
-        ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+        ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
   def test_unified_auth_yaml(self, monkeypatch):
     fake_creds = AnonymousCredentials()
@@ -1233,7 +1233,7 @@ class TestDataprocSpawner:
     config_built = spawner._build_cluster_config()
 
     assert (config_built['config']['software_config']['properties']
-        ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+        ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
   def test_unified_auth_user(self, monkeypatch):
     fake_creds = AnonymousCredentials()
@@ -1257,10 +1257,10 @@ class TestDataprocSpawner:
       'cluster_type': 'perso.yaml',
       'cluster_zone': 'us-central-1',
       "cluster_props_prefix_0": "dataproc",
-      "cluster_props_key_0": "dataproc.personal-auth.user",
+      "cluster_props_key_0": "dataproc.exclusive.user",
       "cluster_props_val_0": "user@example.com"
     }
     config_built = spawner._build_cluster_config()
     assert (config_built['config']['software_config']['properties']
-        ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+        ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 

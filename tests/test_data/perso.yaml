@@ -2,4 +2,4 @@ clusterName: 'personal'
 config:
   softwareConfig:
     properties:
-      dataproc:dataproc.personal-auth.user: 'user@example.com'
+      dataproc:dataproc.exclusive.user: 'user@example.com'
