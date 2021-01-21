@@ -44,7 +44,10 @@ EOT
 function append-config-testing {
   cat <<EOT >> jupyterhub_config.py
 ## Start of configuration for JupyterHub on local machine ##
-c.GCPProxiesAuthenticator.dummy_email = 'testing@example.com'
+if not '${DUMMY_EMAIL}':
+  import sys
+  sys.exit("Please set DUMMY_EMAIL env variable to a value recognized by Component Gateway.")
+c.GCPProxiesAuthenticator.dummy_email = '${DUMMY_EMAIL}'
 c.JupyterHub.log_level = 'DEBUG'
 EOT
 }
@@ -87,6 +90,7 @@ function append-to-jupyterhub-config {
   fi
 
   echo "Running somewhere that is not an AI Notebook."
+  echo "${DUMMY_EMAIL}"
   append-config-testing
   return 0
 }

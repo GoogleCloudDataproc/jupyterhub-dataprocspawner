@@ -20,6 +20,7 @@ from unittest import mock
 import json
 import pytest
 import math
+import re
 import threading
 import json
 import pytest
@@ -151,6 +152,44 @@ class TestDataprocSpawner:
     mock_client.create_cluster.assert_called_once()
 
     assert spawner.cluster_definition['cluster_name'] == f'dataprochub-{spawner.get_username()}-server1'
+
+
+  @pytest.mark.asyncio
+  async def test_random_cluster_name(self, monkeypatch):
+    operation = operations_pb2.Operation()
+
+    # Mock the Dataproc API client
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    mock_client.create_cluster.return_value = operation
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    # Force no existing clusters to bypass the check in the spawner
+    mock_client.get_cluster.return_value = None
+
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=MockUser(), _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-create',
+                              allow_random_cluster_names=True)
+
+    async def test_get_cluster_notebook_endpoint(*args, **kwargs):
+      await asyncio.sleep(0)
+      return f'https://abcd1234-dot-{self.region}.dataproc.googleusercontent.com/jupyter'
+
+    monkeypatch.setattr(spawner, "get_cluster_notebook_endpoint", test_get_cluster_notebook_endpoint)
+
+    class _SubSpawner(DataprocSpawner):
+      name = 'server1'
+
+    spawner.__class__ = _SubSpawner
+
+    url = await spawner.start()
+    mock_client.create_cluster.assert_called_once()
+
+    cn_target = fr'dataprochub-{spawner.get_username()}-server1-[a-z]{{4}}'
+    cn = spawner.cluster_definition['cluster_name']
+    assert re.match(cn_target, cn)
+
 
   @pytest.mark.asyncio
   async def test_start_existing_clustername(self, monkeypatch):
@@ -1191,7 +1230,7 @@ class TestDataprocSpawner:
     assert config_built['config']['software_config']['image_version'] == '1.5-debian10'
     assert config_built['config']['master_config']['image_uri'] == 'projects/test-project/global/images/custom-image'
 
-  def test_unified_auth_flag(self, monkeypatch):
+  def test_personal_auth_flag(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1208,7 +1247,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_unified_auth_yaml(self, monkeypatch):
+  def test_personal_auth_yaml(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1235,7 +1274,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
 
-  def test_unified_auth_user(self, monkeypatch):
+  def test_personal_auth_user(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
