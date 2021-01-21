@@ -186,7 +186,7 @@ class TestDataprocSpawner:
     url = await spawner.start()
     mock_client.create_cluster.assert_called_once()
 
-    cn_target = fr'dataprochub-{spawner.get_username()}-server1-[a-z0-6]{{4}}'
+    cn_target = fr'dataprochub-{spawner.get_username()}-server1-[a-z0-9]{{4}}'
     cn = spawner.cluster_definition['cluster_name']
     assert re.match(cn_target, cn)
 
