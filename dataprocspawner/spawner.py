@@ -1361,6 +1361,7 @@ class DataprocSpawner(Spawner):
       # ones if relevant.
       gcs_config_file = self.user_options.get('cluster_type')
       cluster_zone = self.user_options.get('cluster_zone')
+      personal_auth = self.user_options.get('personal_auth')
 
       # Reads the cluster config from yaml
       self.log.info(f'Reading config file at {gcs_config_file}')
@@ -1382,6 +1383,11 @@ class DataprocSpawner(Spawner):
 
       if 'metadata' in cluster_data['config']['gce_cluster_config']:
         metadata = cluster_data['config']['gce_cluster_config']['metadata']
+
+      # User checked the box to limit access to CG URL.
+      if personal_auth == 'on':
+        (cluster_data['config']['software_config']['properties']
+                     [personal_auth_property]) = self.user.name
 
       # Sets default network for the cluster if not already provided in YAML.
       if ('network_uri' not in cluster_data['config']['gce_cluster_config'] and
