@@ -89,7 +89,26 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
     \t</div>
     </section>"""
 
-  return html_config + '\n' + html_zone
+  # Personal notebook configuration
+  html_personal = """
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="personal-auth" name="personal_auth" checked/>
+        <div class="mdc-checkbox__background">
+          <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24">
+            <path class="mdc-checkbox__checkmark-path"
+                  fill="none"
+                  d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
+          </svg>
+          <div class="mdc-checkbox__mixedmark"></div>
+        </div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="personal-auth">Make the notebook personal.</label>
+    </div>
+  """
+
+  return html_config + '\n' + html_zone + '\n' + html_personal
 
 
 def get_custom_cluster_html_form(autoscaling_policies, node_types):
