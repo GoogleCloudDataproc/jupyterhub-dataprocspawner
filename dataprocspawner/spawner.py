@@ -639,7 +639,7 @@ class DataprocSpawner(Spawner):
         html_customize_cluster
     ])
 
-  def _list_gcs_files(self, gcs_paths, sep=','):
+  def _list_gcs_files(self, gcs_paths, sep=',', sort=True):
     """ Lists the file names of a GCS bucket or subfolder.
     Args:
     - str gcs_files: String that represents a path or a list of paths separated
@@ -662,6 +662,8 @@ class DataprocSpawner(Spawner):
           pass
 
     config_paths = list(set(config_paths))
+    if sort:
+      config_paths = sorted(config_paths)
     return config_paths if config_paths else ''
 
   async def get_options_form(self):
@@ -965,9 +967,9 @@ class DataprocSpawner(Spawner):
     distinguish between clusters. """
     if cluster_name is None:
       cluster_name = self.cluster_name_pattern.format(self.get_username())
-      # Set only if allow_named_servers == True
       if self.name:
         cluster_name += f'-{self.name}'
+      # Set only if allow_named_servers == True
       if self.rand_str:
         cluster_name += self.rand_str
     return cluster_name

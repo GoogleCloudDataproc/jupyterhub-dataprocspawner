@@ -31,7 +31,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
 docker build -t "${DOCKER_IMAGE}" -f docker/Dockerfile .
 
 # Runs
-# For named servers, add -e HUB_ALLOW_NAMED_SERVERS="True"
+# For named servers, add -e HUB_ALLOW_NAMED_SERVERS="true"
 docker run -it \
 -p "${PORT}":8080 \
 -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json  \
@@ -42,4 +42,7 @@ docker run -it \
 -e JUPYTERHUB_REGION="us-west1" \
 -e DATAPROC_ALLOW_CUSTOM_CLUSTERS=true \
 -e FORCE_SINGLE_USER=true \
+-e HUB_ALLOW_NAMED_SERVERS="true" \
+-e ALLOW_RANDOM_CLUSTER_NAMES="true" \
+-e DUMMY_EMAIL="${USER_EMAIL}" \
 "${DOCKER_IMAGE}"
