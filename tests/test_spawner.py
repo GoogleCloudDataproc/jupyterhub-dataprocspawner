@@ -1324,7 +1324,7 @@ class TestDataprocSpawner:
     spawner.user_options = {
       'cluster_type': 'minimum.yaml',
       'cluster_zone': 'us-central-1',
-      'personal_auth': 'on'
+      'exclusive_user': 'on'
     }
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
