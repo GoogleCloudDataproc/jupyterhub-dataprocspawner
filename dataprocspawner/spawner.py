@@ -1353,7 +1353,7 @@ class DataprocSpawner(Spawner):
     # but must be set in case there is no form.
     cluster_data = cluster_data or {}
     cluster_zone = self.zone
-    personal_auth_property = 'dataproc:dataproc.personal-auth.user'
+    personal_auth_property = 'dataproc:dataproc.exclusive.user'
 
     # Sets the cluster definition with form data.
     if self.user_options:
@@ -1480,7 +1480,7 @@ class DataprocSpawner(Spawner):
       else:
         cluster_data['config']['software_config']['image_version'] = '1.4-debian9'
 
-    # A user can only set 'dataproc:dataproc.personal-auth.user' for themselves.
+    # A user can only set 'dataproc:dataproc.exclusive.user' for themselves.
     # Otherwise the CG Url is not accessible by either identities. So, if set,
     # the personal auth property can only have the value of self.user.name. For
     # that reason, there is no priority between yaml and user.
