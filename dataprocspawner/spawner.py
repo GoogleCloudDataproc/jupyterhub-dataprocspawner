@@ -1353,7 +1353,7 @@ class DataprocSpawner(Spawner):
     # but must be set in case there is no form.
     cluster_data = cluster_data or {}
     cluster_zone = self.zone
-    personal_auth_property = 'dataproc:dataproc.exclusive.user'
+    exclusive_user_property = 'dataproc:dataproc.exclusive.user'
 
     # Sets the cluster definition with form data.
     if self.user_options:
@@ -1363,7 +1363,7 @@ class DataprocSpawner(Spawner):
       # ones if relevant.
       gcs_config_file = self.user_options.get('cluster_type')
       cluster_zone = self.user_options.get('cluster_zone')
-      personal_auth = self.user_options.get('personal_auth')
+      exclusive_user = self.user_options.get('exclusive_user')
 
       # Reads the cluster config from yaml
       self.log.info(f'Reading config file at {gcs_config_file}')
@@ -1387,9 +1387,9 @@ class DataprocSpawner(Spawner):
         metadata = cluster_data['config']['gce_cluster_config']['metadata']
 
       # User checked the box to limit access to CG URL.
-      if personal_auth == 'on':
+      if exclusive_user == 'on':
         (cluster_data['config']['software_config']['properties']
-                     [personal_auth_property]) = self.user.name
+                     [exclusive_user_property]) = self.user.name
 
       # Sets default network for the cluster if not already provided in YAML.
       if ('network_uri' not in cluster_data['config']['gce_cluster_config'] and
@@ -1485,9 +1485,9 @@ class DataprocSpawner(Spawner):
     # the personal auth property can only have the value of self.user.name. For
     # that reason, there is no priority between yaml and user.
     if (self.force_single_user or
-        personal_auth_property in cluster_data['config']['software_config']['properties']):
+        exclusive_user_property in cluster_data['config']['software_config']['properties']):
       (cluster_data['config']['software_config']['properties']
-                   [personal_auth_property]) = self.user.name
+                   [exclusive_user_property]) = self.user.name
 
     # Forces Component Gateway
     cluster_data['config'].setdefault('endpoint_config', {})
