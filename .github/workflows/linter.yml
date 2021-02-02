@@ -10,9 +10,9 @@ name: Lint
 # Start the job on any push
 on:
   push:
-    branches-ignore: [master]
+    branches-ignore: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 ###############
 # Set the Job #
@@ -35,7 +35,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           # Don't lint tests
           FILTER_REGEX_EXCLUDE: (tests/.*)|(docker/*)|(static/*)
-          DEFAULT_BRANCH: master
+          DEFAULT_BRANCH: main
           LINTER_RULES_PATH: .
           VALIDATE_PYTHON_FLAKE8: false
           VALIDATE_PYTHON_BLACK: false

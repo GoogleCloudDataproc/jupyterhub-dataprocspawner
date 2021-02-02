@@ -5,7 +5,7 @@
 # Its canonical open-source location is:
 #   https://google.github.io/styleguide/pylintrc
 
-[MASTER]
+[MAIN]
 
 # Add files or directories to the blocklist. They should be base names, not
 # paths.
