@@ -1231,9 +1231,9 @@ class TestDataprocSpawner:
     assert config_built['config']['master_config']['image_uri'] == 'projects/test-project/global/images/custom-image'
 
   ##
-  # Tests for personal auth
+  # Tests for exclusive auth
   ##
-  def test_personal_auth_flag(self, monkeypatch):
+  def test_exclusive_auth_flag(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1250,7 +1250,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
-  def test_personal_auth_yaml(self, monkeypatch):
+  def test_exclusive_auth_yaml(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1261,14 +1261,14 @@ class TestDataprocSpawner:
                               compute=mock_compute_client, project='test-project')
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/perso.yaml', 'r').read()
+      config_string = open('./tests/test_data/exclusive.yaml', 'r').read()
       return config_string
 
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     spawner.user_options = {
-      'cluster_type': 'perso.yaml',
+      'cluster_type': 'exclusive.yaml',
       'cluster_zone': 'us-central-1'
     }
 
@@ -1277,7 +1277,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
-  def test_personal_auth_user(self, monkeypatch):
+  def test_exclusive_auth_user(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1288,7 +1288,7 @@ class TestDataprocSpawner:
                               compute=mock_compute_client, project='test-project')
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/perso.yaml', 'r').read()
+      config_string = open('./tests/test_data/exclusive.yaml', 'r').read()
       return config_string
 
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
@@ -1296,7 +1296,7 @@ class TestDataprocSpawner:
     spawner.args_str = "test-args-str"
     spawner.allow_custom_clusters = True
     spawner.user_options = {
-      'cluster_type': 'perso.yaml',
+      'cluster_type': 'exclusive.yaml',
       'cluster_zone': 'us-central-1',
       "cluster_props_prefix_0": "dataproc",
       "cluster_props_key_0": "dataproc.exclusive.user",
@@ -1306,7 +1306,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
-  def test_personal_auth_chechbox_on(self, monkeypatch):
+  def test_exclusive_auth_chechbox_on(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1317,22 +1317,22 @@ class TestDataprocSpawner:
                               compute=mock_compute_client, project='test-project')
 
     def test_read_file(*args, **kwargs):
-      config_string = open('./tests/test_data/perso.yaml', 'r').read()
+      config_string = open('./tests/test_data/exclusive.yaml', 'r').read()
       return config_string
 
     monkeypatch.setattr(spawner, "read_gcs_file", test_read_file)
     spawner.user_options = {
       'cluster_type': 'minimum.yaml',
       'cluster_zone': 'us-central-1',
-      'personal_auth': 'on'
+      'exclusive': 'on'
     }
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     config_built = spawner._build_cluster_config()
     assert (config_built['config']['software_config']['properties']
-        ['dataproc:dataproc.personal-auth.user']) == spawner.user.name
+        ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
-  def test_personal_auth_chechbox_off(self, monkeypatch):
+  def test_exclusive_chechbox_off(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
@@ -1345,6 +1345,6 @@ class TestDataprocSpawner:
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
     config_built = spawner._build_cluster_config()
-    assert 'dataproc:dataproc.personal-auth.user' not in config_built['config']['software_config']['properties']
+    assert 'dataproc:dataproc.exclusive.user' not in config_built['config']['software_config']['properties']
 
 
