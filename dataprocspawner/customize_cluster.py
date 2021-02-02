@@ -93,7 +93,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
   html_exclusive = """
     <div class="mdc-form-field">
       <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="exclusive" name="exclusive" checked/>
+        <input type="checkbox" class="mdc-checkbox__native-control" id="exclusive-user" name="exclusive_user" checked/>
         <div class="mdc-checkbox__background">
           <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24">
             <path class="mdc-checkbox__checkmark-path"
@@ -104,7 +104,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
         </div>
         <div class="mdc-checkbox__ripple"></div>
       </div>
-      <label for="exclusive">Make notebook access exclusif.</label>
+      <label for="exclusive-user">Make notebook access exclusive.</label>
     </div>
   """
 

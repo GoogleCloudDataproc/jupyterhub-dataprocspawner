@@ -1324,7 +1324,7 @@ class TestDataprocSpawner:
     spawner.user_options = {
       'cluster_type': 'minimum.yaml',
       'cluster_zone': 'us-central-1',
-      'exclusive': 'on'
+      'exclusive_user': 'on'
     }
     spawner.env_str = "test-env-str"
     spawner.args_str = "test-args-str"
@@ -1332,7 +1332,7 @@ class TestDataprocSpawner:
     assert (config_built['config']['software_config']['properties']
         ['dataproc:dataproc.exclusive.user']) == spawner.user.name
 
-  def test_exclusive_chechbox_off(self, monkeypatch):
+  def test_exclusive_user_chechbox_off(self, monkeypatch):
     fake_creds = AnonymousCredentials()
     mock_dataproc_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
     mock_gcs_client = mock.create_autospec(storage.Client(credentials=fake_creds, project='project'))
