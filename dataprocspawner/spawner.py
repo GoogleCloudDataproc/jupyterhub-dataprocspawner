@@ -1482,7 +1482,7 @@ class DataprocSpawner(Spawner):
 
     # A user can only set 'dataproc:dataproc.exclusive.user' for themselves.
     # Otherwise the CG Url is not accessible by either identities. So, if set,
-    # the personal auth property can only have the value of self.user.name. For
+    # the exclusive auth property can only have the value of self.user.name. For
     # that reason, there is no priority between yaml and user.
     if (self.force_single_user or
         exclusive_user_property in cluster_data['config']['software_config']['properties']):

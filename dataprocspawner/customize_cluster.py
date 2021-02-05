@@ -89,8 +89,8 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
     \t</div>
     </section>"""
 
-  # Personal notebook configuration
-  html_personal = """
+  # Exclusive notebook access configuration
+  html_exclusive = """
     <div class="mdc-form-field">
       <div class="mdc-checkbox">
         <input type="checkbox" class="mdc-checkbox__native-control" id="exclusive-user" name="exclusive_user" checked/>
@@ -108,7 +108,7 @@ def get_base_cluster_html_form(configs, locations_list, jhub_region):
     </div>
   """
 
-  return html_config + '\n' + html_zone + '\n' + html_personal
+  return html_config + '\n' + html_zone + '\n' + html_exclusive
 
 
 def get_custom_cluster_html_form(autoscaling_policies, node_types):

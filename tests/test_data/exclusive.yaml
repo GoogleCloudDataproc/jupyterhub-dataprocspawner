@@ -1,4 +1,4 @@
-clusterName: 'personal'
+clusterName: 'exclusive'
 config:
   softwareConfig:
     properties:
