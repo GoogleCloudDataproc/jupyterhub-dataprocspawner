@@ -18,7 +18,7 @@ import socket
 
 from tornado import web
 
-from google.cloud import secretmanager_v1beta1 as secretmanager
+from google.cloud import secretmanager_v1 as secretmanager
 
 def is_true(boolstring: str):
   """ Converts an environment variables to a Python boolean. """
