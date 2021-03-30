@@ -608,11 +608,8 @@ class TestDataprocSpawner:
 
     config_built = spawner._build_cluster_config()
 
-    # Verify that we disable Component Gateway (temporarily)
+    # Verify that we enable Component Gateway
     assert config_built['config']['endpoint_config']['enable_http_port_access'] == True
-    # Verify that we disable preemptibility (temporarily)
-    assert 'preemptibility' not in config_built['config']['master_config']
-    assert 'preemptibility' not in config_built['config']['worker_config']
     # Verify that we removed cluster-specific namenode properties
     assert 'hdfs:dfs.namenode.lifeline.rpc-address' not in config_built['config']['software_config']['properties']
     assert 'hdfs:dfs.namenode.servicerpc-address' not in config_built['config']['software_config']['properties']

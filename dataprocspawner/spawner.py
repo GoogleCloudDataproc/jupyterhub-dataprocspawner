@@ -725,8 +725,8 @@ class DataprocSpawner(Spawner):
 
     if self.debug:
       args.append('--debug')
-    args.append('--NotebookApp.hub_activity_interval=0')
-    args.append('--NotebookApp.hub_host={}'.format(self.hub_host))
+    args.append('--SingleUserNotebookApp.hub_activity_interval=0')
+    args.append('--SingleUserNotebookApp.hub_host={}'.format(self.hub_host))
     args.extend(self.args)
     return args
 
