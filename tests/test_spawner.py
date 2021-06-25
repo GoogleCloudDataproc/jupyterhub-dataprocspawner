@@ -61,10 +61,11 @@ class MockOperation(object):
   def set_delay_done(self):
     self.op_done = True
 
-class MockUser(mock.Mock):
-  name = 'fake@example.com'
-  base_url = '/user/fake'
-  server = Server()
+class MockUser():
+  def __init__(self, name='fake@example.com'):
+    self.name = name
+    self.base_url = '/user/fake'
+    self.server = Server()
 
   @property
   def escaped_name(self):
@@ -322,6 +323,19 @@ class TestDataprocSpawner:
 
     assert spawner.project == 'test-poll-no-cluster'
     assert await spawner.poll() == 1
+
+  def test_clustername_user_case(self, monkeypatch):
+    user = MockUser(name="Example.User@example.com")
+    fake_creds = AnonymousCredentials()
+    mock_client = mock.create_autospec(ClusterControllerClient(credentials=fake_creds))
+    # Mock the Compute Engine API client
+    mock_compute_client = mock.create_autospec(discovery.build('compute', 'v1',
+                                               credentials=fake_creds, cache_discovery=False))
+    spawner = DataprocSpawner(hub=Hub(), dataproc=mock_client, user=user, _mock=True,
+                              gcs_notebooks=self.gcs_notebooks, compute=mock_compute_client, project='test-project')
+
+    assert "example-user" in spawner.clustername()
+    assert "Example-User" not in spawner.clustername()
 
   # YAML files
   # Tests Dataproc cluster configurations.
