@@ -972,7 +972,7 @@ class DataprocSpawner(Spawner):
       # Set only if allow_named_servers == True
       if self.rand_str:
         cluster_name += self.rand_str
-    return cluster_name
+    return cluster_name.lower()
 
   def calculate_config_value(self, key, path):
     """ Checks if a key exists at a dictionary path and returns a default value
@@ -996,9 +996,9 @@ class DataprocSpawner(Spawner):
     gcs_prefix = 'gs://'
     if path.startswith(gcs_prefix):
       path = path[len(gcs_prefix):]
-    path = path.split('/')
-    bucket = path[0]
-    folder = '/'.join(path[1:])
+    path_parts = path.split('/')
+    bucket = path_parts[0]
+    folder = '/'.join(path_parts[1:])
     if not folder.endswith('/'):
       folder += '/'
     return bucket, folder

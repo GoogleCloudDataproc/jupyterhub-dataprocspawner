@@ -36,6 +36,7 @@ setup(
   url='https://github.com/GoogleCloudPlatform/dataprocspawner',
   license='Apache 2.0',
   install_requires=[
+    'jupyterhub==1.2.2',
     'tornado>=5.0',
     'google-cloud-dataproc>=2.0.0',
     'google-cloud-storage>=1.25.0',

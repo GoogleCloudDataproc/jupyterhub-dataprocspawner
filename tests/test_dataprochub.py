@@ -66,9 +66,9 @@ class TestDataprocHub:
     handlers_given = [make_tuple(h) for h in handlers_given]
     handlers_expected = [make_tuple(h) for h in handlers_expected]
 
-    monkeypatch.setattr(mock_app, 'handlers', handlers_given)
     monkeypatch.setattr(mock_app, 'logo_file', 'local')
 
+    mock_app.handlers = handlers_given
     mock_app.init_handlers()
     handlers_modified = mock_app.handlers
 
@@ -93,9 +93,9 @@ class TestDataprocHub:
     handlers_given = [make_tuple(h) for h in handlers_given]
     handlers_expected = [make_tuple(h) for h in handlers_expected]
 
-    monkeypatch.setattr(mock_app, 'handlers', handlers_given)
     monkeypatch.setattr(mock_app, 'logo_file', 'local')
 
+    mock_app.handlers = handlers_given
     mock_app.init_handlers()
     handlers_modified = mock_app.handlers
 
