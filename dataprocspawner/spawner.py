@@ -33,15 +33,15 @@ from dataprocspawner.customize_cluster import (
 from dataprocspawner.spawnable import DataprocHubServer
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
-from google.cloud.dataproc_v1beta2 import (
+from google.cloud.dataproc_v1 import (
     Cluster,
     ClusterControllerClient,
     ClusterStatus,
 )
-from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import (
+from google.cloud.dataproc_v1.services.cluster_controller.transports import (
     ClusterControllerGrpcTransport,
 )
-from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.cloud.dataproc_v1.types.shared import Component
 from google.protobuf.json_format import MessageToDict
 from googleapiclient import discovery
 from jupyterhub import orm

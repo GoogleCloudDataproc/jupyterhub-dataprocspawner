@@ -29,9 +29,9 @@ from dataprocspawner import DataprocSpawner
 from dataprochub.app import DataprocHub, DataprocHubUserUrlHandler
 from dataprochub.proxy import RedirectProxy
 from google.auth.credentials import AnonymousCredentials
-from google.cloud.dataproc_v1beta2 import (
+from google.cloud.dataproc_v1 import (
   ClusterControllerClient, Cluster, ClusterStatus)
-from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.cloud.dataproc_v1.types.shared import Component
 from google.longrunning import operations_pb2
 from google.cloud import storage, logging_v2
 from google.cloud.logging_v2.types import LogEntry

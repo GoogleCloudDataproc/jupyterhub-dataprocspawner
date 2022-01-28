@@ -28,9 +28,9 @@ import asyncio
 import dataprocspawner
 from dataprocspawner import DataprocSpawner
 from google.auth.credentials import AnonymousCredentials
-from google.cloud.dataproc_v1beta2 import (
+from google.cloud.dataproc_v1 import (
   ClusterControllerClient, Cluster, ClusterStatus)
-from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.cloud.dataproc_v1.types.shared import Component
 from google.longrunning import operations_pb2
 from google.cloud import storage, logging_v2
 from google.cloud.logging_v2.types import LogEntry
@@ -1003,12 +1003,12 @@ class TestDataprocSpawner:
     assert len(warnings) == 7
     expected_warnings = [
        'Removing unknown/bad value BAD_ENUM_VALUE for field consume_reservation_type.',
-       "Removing unknown field unknown_field for class <class 'google.cloud.dataproc_v1beta2.types.clusters.NodeInitializationAction'>",
+       "Removing unknown field unknown_field for class <class 'google.cloud.dataproc_v1.types.clusters.NodeInitializationAction'>",
        'Removing unknown/bad value UNKNOWN_COMPONENT_1 for field optional_components.',
        'Removing unknown/bad value UNKNOWN_COMPONENT_2 for field optional_components.',
        'Removing unknown/bad value UNKNOWN_COMPONENT_3 for field optional_components.',
-       "Removing unknown field unknown_field_config_level for class <class 'google.cloud.dataproc_v1beta2.types.clusters.ClusterConfig'>",
-       "Removing unknown field unknown_field_top_level for class <class 'google.cloud.dataproc_v1beta2.types.clusters.Cluster'>",
+       "Removing unknown field unknown_field_config_level for class <class 'google.cloud.dataproc_v1.types.clusters.ClusterConfig'>",
+       "Removing unknown field unknown_field_top_level for class <class 'google.cloud.dataproc_v1.types.clusters.Cluster'>",
     ]
     for w in expected_warnings:
       assert w in warnings, f'Expected message {w} in warnings {warnings}'
