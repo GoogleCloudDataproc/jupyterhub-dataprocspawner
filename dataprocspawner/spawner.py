@@ -33,15 +33,15 @@ from dataprocspawner.customize_cluster import (
 from dataprocspawner.spawnable import DataprocHubServer
 from google.api_core import exceptions
 from google.cloud import logging_v2, storage
-from google.cloud.dataproc_v1beta2 import (
+from google.cloud.dataproc_v1 import (
     Cluster,
     ClusterControllerClient,
     ClusterStatus,
 )
-from google.cloud.dataproc_v1beta2.services.cluster_controller.transports import (
+from google.cloud.dataproc_v1.services.cluster_controller.transports import (
     ClusterControllerGrpcTransport,
 )
-from google.cloud.dataproc_v1beta2.types.shared import Component
+from google.cloud.dataproc_v1.types.shared import Component
 from google.protobuf.json_format import MessageToDict
 from googleapiclient import discovery
 from jupyterhub import orm
@@ -726,7 +726,7 @@ class DataprocSpawner(Spawner):
     if self.debug:
       args.append('--debug')
     args.append('--SingleUserNotebookApp.hub_activity_interval=0')
-    args.append('--SingleUserNotebookApp.hub_host={}'.format(self.hub_host))
+    args.append(f'--SingleUserNotebookApp.hub_host={self.hub_host}')
     args.extend(self.args)
     return args
 
@@ -996,9 +996,9 @@ class DataprocSpawner(Spawner):
     gcs_prefix = 'gs://'
     if path.startswith(gcs_prefix):
       path = path[len(gcs_prefix):]
-    path = path.split('/')
-    bucket = path[0]
-    folder = '/'.join(path[1:])
+    path_components = path.split('/')
+    bucket = path_components[0]
+    folder = '/'.join(path_components[1:])
     if not folder.endswith('/'):
       folder += '/'
     return bucket, folder
@@ -1101,7 +1101,7 @@ class DataprocSpawner(Spawner):
     try:
       major_version = int(parts[0].split('.')[0])
     except ValueError as e:
-      self.log.warning('Failed to parse image version "%s": %s' % (image_version, e))
+      self.log.warning(f'Failed to parse image version "{image_version}": {e}')
       # Something weird is going on with image version format, fail open
       return True
 

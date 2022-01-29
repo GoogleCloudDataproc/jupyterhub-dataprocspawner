@@ -37,7 +37,7 @@ setup(
   license='Apache 2.0',
   install_requires=[
     'tornado>=5.0',
-    'google-cloud-dataproc>=2.0.0',
+    'google-cloud-dataproc>=3.0.0',
     'google-cloud-storage>=1.25.0',
     'traitlets>=4.3.2',
     'google-cloud-core>=1.3.0',

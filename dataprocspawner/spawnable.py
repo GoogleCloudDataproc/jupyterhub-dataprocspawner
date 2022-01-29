@@ -18,7 +18,7 @@ import errno
 import socket
 
 from google.api_core import exceptions
-from google.cloud.dataproc_v1beta2 import ClusterStatus
+from google.cloud.dataproc_v1 import ClusterStatus
 from jupyterhub.objects import Server
 from jupyterhub.utils import exponential_backoff
 from tornado import ioloop
