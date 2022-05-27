@@ -67,7 +67,7 @@ RUN pip install /tmp/dataprocspawner/
 COPY static/templates/ /etc/jupyterhub/templates/
 COPY static/mdc/ /usr/local/share/jupyterhub/static/mdc/
 
-COPY docker/jupyterhub_config.py .
+COPY docker/jupyterhub_config.py /etc/jupyterhub/jupyterhub_config.py
 
 EXPOSE 8080
 

@@ -271,4 +271,4 @@ function set-default-name-pattern() {
 append-to-jupyterhub-config
 
 # Starts JupyterHub.
-jupyterhub
+jupyterhub -f /etc/jupyterhub/jupyterhub_config.py
